@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"time"
 
@@ -24,7 +25,19 @@ func env(key, def string) string {
 
 func main() {
 	ctx := context.Background()
-	dsn := env("DATABASE_URL", "postgres://mdn:mdn@localhost:5432/mdn?sslmode=disable")
+	// DATABASE_URL wins; otherwise the DSN is assembled from the same POSTGRES_*
+	// variables the postgres image uses, so one .env configures both containers.
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		user := env("POSTGRES_USER", "postgres")
+		dsn = (&url.URL{
+			Scheme:   "postgres",
+			User:     url.UserPassword(user, os.Getenv("POSTGRES_PASSWORD")),
+			Host:     env("DB_HOST", "db") + ":" + env("DB_PORT", "5432"),
+			Path:     env("POSTGRES_DB", user),
+			RawQuery: "sslmode=" + env("DB_SSLMODE", "disable"),
+		}).String()
+	}
 
 	var db *pgxpool.Pool
 	var err error

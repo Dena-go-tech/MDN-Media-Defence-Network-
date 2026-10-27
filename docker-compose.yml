@@ -21,6 +21,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    networks:
+      - tunnel
 
   frontend:
     container_name: mdn_frontend
@@ -30,3 +32,9 @@ services:
       - "8080:80"
     depends_on:
       - backend
+    networks:
+      - tunnel
+
+networks:
+  tunnel:
+    driver: bridge
