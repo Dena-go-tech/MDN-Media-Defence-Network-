@@ -56,6 +56,18 @@ export interface Result {
   created_at: string
 }
 
+export type Verdict = 'verified' | 'fake' | 'doubt' | 'warning' | 'none'
+
+export interface Script {
+  id: number
+  question: string
+  answer: string
+  verdict: Verdict
+  position: number
+  published: boolean
+  created_at: string
+}
+
 export interface SubmitResult {
   score: number
   total: number

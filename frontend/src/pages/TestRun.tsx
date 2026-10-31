@@ -63,7 +63,7 @@ export default function TestRun() {
         <button className="btn" disabled={!allAnswered} onClick={submit}>Отправить ответы</button>
       ) : (
         <div className="result">
-          <Link to="/login" className="link">Войдите</Link>, чтобы пройти тест и сохранить результат.
+          <span><Link to="/login" className="link">Войдите</Link>, чтобы пройти тест и сохранить результат.</span>
         </div>
       )}
       {submitError && <p className="error">{submitError}</p>}

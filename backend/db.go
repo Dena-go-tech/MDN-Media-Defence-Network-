@@ -41,6 +41,16 @@ CREATE TABLE IF NOT EXISTS tests (
 	created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS assistant_scripts (
+	id         BIGSERIAL PRIMARY KEY,
+	question   TEXT NOT NULL,
+	answer     TEXT NOT NULL,
+	verdict    TEXT NOT NULL DEFAULT 'none',
+	position   INT NOT NULL DEFAULT 0,
+	published  BOOLEAN NOT NULL DEFAULT true,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS results (
 	id         BIGSERIAL PRIMARY KEY,
 	user_id    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

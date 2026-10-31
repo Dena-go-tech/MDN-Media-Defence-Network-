@@ -8,12 +8,15 @@ import (
 	"os"
 	"time"
 
+	"github.com/anthropics/anthropic-sdk-go/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type App struct {
-	db        *pgxpool.Pool
-	jwtSecret []byte
+	db          *pgxpool.Pool
+	jwtSecret   []byte
+	claude      *anthropic.Client
+	claudeModel string
 }
 
 func env(key, def string) string {
@@ -60,7 +63,13 @@ func main() {
 		log.Fatalf("migrate: %v", err)
 	}
 
-	app := &App{db: db, jwtSecret: []byte(env("JWT_SECRET", "dev-secret-change-me"))}
+	app := &App{db: db, jwtSecret: []byte(env("JWT_SECRET", "dev-secret-change-me")), claudeModel: env("ANTHROPIC_MODEL", "claude-opus-5-5")}
+	if os.Getenv("ANTHROPIC_API_KEY") != "" {
+		c := anthropic.NewClient()
+		app.claude = &c
+	} else {
+		log.Print("ANTHROPIC_API_KEY is not set: AI assistant is disabled")
+	}
 	if err := app.seedAdmin(ctx, env("ADMIN_EMAIL", "admin@mdn.kg"), env("ADMIN_PASSWORD", "admin123")); err != nil {
 		log.Fatalf("seed admin: %v", err)
 	}
@@ -82,6 +91,10 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /api/me", a.requireAuth(a.me))
 	mux.HandleFunc("GET /api/me/results", a.requireAuth(a.myResults))
 
+	mux.HandleFunc("GET /api/assistant/status", a.assistantStatus)
+	mux.HandleFunc("GET /api/assistant/scripts", a.listScripts)
+	mux.HandleFunc("POST /api/assistant/chat", a.requireAuth(a.assistantChat))
+
 	mux.HandleFunc("GET /api/news", a.listNews)
 	mux.HandleFunc("GET /api/news/{id}", a.getNews)
 
@@ -93,6 +106,11 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("POST /api/admin/news", a.requireAdmin(a.createNews))
 	mux.HandleFunc("PUT /api/admin/news/{id}", a.requireAdmin(a.updateNews))
 	mux.HandleFunc("DELETE /api/admin/news/{id}", a.requireAdmin(a.deleteNews))
+
+	mux.HandleFunc("GET /api/admin/scripts", a.requireAdmin(a.adminListScripts))
+	mux.HandleFunc("POST /api/admin/scripts", a.requireAdmin(a.createScript))
+	mux.HandleFunc("PUT /api/admin/scripts/{id}", a.requireAdmin(a.updateScript))
+	mux.HandleFunc("DELETE /api/admin/scripts/{id}", a.requireAdmin(a.deleteScript))
 
 	mux.HandleFunc("GET /api/admin/tests", a.requireAdmin(a.adminListTests))
 	mux.HandleFunc("GET /api/admin/tests/{id}", a.requireAdmin(a.adminGetTest))
