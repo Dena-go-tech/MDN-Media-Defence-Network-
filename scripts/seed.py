@@ -32,6 +32,7 @@ def load_env():
 def call(method, path, body=None, token=None):
     req = urllib.request.Request(BASE + path, method=method, data=json.dumps(body).encode() if body else None)
     req.add_header("Content-Type", "application/json")
+    req.add_header("User-Agent", "mdn-seed/1.0")  # Cloudflare blocks the default Python-urllib UA
     if token:
         req.add_header("Authorization", "Bearer " + token)
     with urllib.request.urlopen(req) as res:
