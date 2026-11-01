@@ -12,12 +12,13 @@ type News struct {
 	Summary   string    `json:"summary"`
 	Body      string    `json:"body"`
 	ImageURL  string    `json:"image_url"`
+	Category  string    `json:"category"`
 	Featured  bool      `json:"featured"`
 	Published bool      `json:"published"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
-const newsCols = `id, title, summary, body, image_url, featured, published, created_at`
+const newsCols = `id, title, summary, body, image_url, category, featured, published, created_at`
 
 func (a *App) queryNews(r *http.Request, where string) ([]News, error) {
 	rows, err := a.db.Query(r.Context(), `SELECT `+newsCols+` FROM news `+where+` ORDER BY featured DESC, created_at DESC`)
@@ -28,7 +29,7 @@ func (a *App) queryNews(r *http.Request, where string) ([]News, error) {
 	list := []News{}
 	for rows.Next() {
 		var n News
-		if err := rows.Scan(&n.ID, &n.Title, &n.Summary, &n.Body, &n.ImageURL, &n.Featured, &n.Published, &n.CreatedAt); err != nil {
+		if err := rows.Scan(&n.ID, &n.Title, &n.Summary, &n.Body, &n.ImageURL, &n.Category, &n.Featured, &n.Published, &n.CreatedAt); err != nil {
 			return nil, err
 		}
 		list = append(list, n)
@@ -62,7 +63,7 @@ func (a *App) getNews(w http.ResponseWriter, r *http.Request) {
 	}
 	var n News
 	err := a.db.QueryRow(r.Context(), `SELECT `+newsCols+` FROM news WHERE id = $1 AND published`, id).
-		Scan(&n.ID, &n.Title, &n.Summary, &n.Body, &n.ImageURL, &n.Featured, &n.Published, &n.CreatedAt)
+		Scan(&n.ID, &n.Title, &n.Summary, &n.Body, &n.ImageURL, &n.Category, &n.Featured, &n.Published, &n.CreatedAt)
 	if isNotFound(err) {
 		writeError(w, http.StatusNotFound, "not found")
 		return
@@ -81,6 +82,7 @@ func decodeNews(w http.ResponseWriter, r *http.Request) (*News, bool) {
 		return nil, false
 	}
 	n.Title = strings.TrimSpace(n.Title)
+	n.Category = strings.TrimSpace(n.Category)
 	if n.Title == "" {
 		writeError(w, http.StatusBadRequest, "title is required")
 		return nil, false
@@ -93,10 +95,15 @@ func (a *App) createNews(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	// An optional created_at lets imports keep the original publication date.
+	var created *time.Time
+	if !n.CreatedAt.IsZero() {
+		created = &n.CreatedAt
+	}
 	err := a.db.QueryRow(r.Context(), `
-		INSERT INTO news (title, summary, body, image_url, featured, published)
-		VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, created_at`,
-		n.Title, n.Summary, n.Body, n.ImageURL, n.Featured, n.Published).Scan(&n.ID, &n.CreatedAt)
+		INSERT INTO news (title, summary, body, image_url, category, featured, published, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE($8, now())) RETURNING id, created_at`,
+		n.Title, n.Summary, n.Body, n.ImageURL, n.Category, n.Featured, n.Published, created).Scan(&n.ID, &n.CreatedAt)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "db error")
 		return
@@ -115,8 +122,8 @@ func (a *App) updateNews(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tag, err := a.db.Exec(r.Context(), `
-		UPDATE news SET title=$1, summary=$2, body=$3, image_url=$4, featured=$5, published=$6 WHERE id=$7`,
-		n.Title, n.Summary, n.Body, n.ImageURL, n.Featured, n.Published, id)
+		UPDATE news SET title=$1, summary=$2, body=$3, image_url=$4, category=$5, featured=$6, published=$7 WHERE id=$8`,
+		n.Title, n.Summary, n.Body, n.ImageURL, n.Category, n.Featured, n.Published, id)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "db error")
 		return

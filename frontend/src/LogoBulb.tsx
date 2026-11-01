@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef } from 'react'
-import { renderPose } from './lib/buddy-bulb.js'
+import { renderPose } from './lib/bulb-ai.js'
 
 // Static (non-animated) bulb for the site logo.
 export default function LogoBulb() {

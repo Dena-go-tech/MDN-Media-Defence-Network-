@@ -1,6 +1,6 @@
-import { Link } from 'react-router-dom'
 import type { TestSummary } from '../api'
 import { useFetch } from '../useFetch'
+import TestCard from './TestCard'
 
 export default function TestsPage() {
   const { data, error, loading } = useFetch<TestSummary[]>('/tests')
@@ -10,19 +10,15 @@ export default function TestsPage() {
 
   return (
     <>
-      <h1>Тесты</h1>
-      <p className="muted">Проверьте свои знания в области медиаграмотности и цифровой безопасности.</p>
+      <div className="page-head">
+        <div>
+          <h1>Тесты и самопроверка</h1>
+          <p className="lede">Проверьте свои знания в области медиаправа, медиаграмотности и цифровой безопасности. Результаты сохраняются в профиле.</p>
+        </div>
+      </div>
       {data?.length === 0 && <div className="empty">Тестов пока нет.</div>}
-      <div className="grid">
-        {data?.map((t) => (
-          <Link key={t.id} to={`/tests/${t.id}`} className="card">
-            <div className="card-body">
-              <h3>{t.title}</h3>
-              <p>{t.description}</p>
-              <span className="muted">{t.question_count} вопросов</span>
-            </div>
-          </Link>
-        ))}
+      <div className="test-grid">
+        {data?.map((t) => <TestCard key={t.id} t={t} />)}
       </div>
     </>
   )

@@ -59,6 +59,19 @@ CREATE TABLE IF NOT EXISTS results (
 	total      INT NOT NULL,
 	created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+ALTER TABLE news ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT '';
+ALTER TABLE tests ADD COLUMN IF NOT EXISTS level TEXT NOT NULL DEFAULT '';
+
+ALTER TABLE results ADD COLUMN IF NOT EXISTS details JSONB NOT NULL DEFAULT '[]';
+
+CREATE TABLE IF NOT EXISTS assistant_settings (
+	id            INT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+	system_prompt TEXT NOT NULL,
+	site_context  BOOLEAN NOT NULL DEFAULT true,
+	web_search    BOOLEAN NOT NULL DEFAULT true,
+	updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 `
 
 func migrate(ctx context.Context, db *pgxpool.Pool) error {

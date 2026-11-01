@@ -1,5 +1,5 @@
 import { forwardRef, useImperativeHandle, useLayoutEffect, useRef } from 'react'
-import createBulb, { type BulbController, type BulbOptions } from './lib/buddy-bulb.js'
+import createBulb, { type BulbController, type BulbOptions } from './lib/bulb-ai.js'
 
 // Thin wrapper: creates the character on mount, destroys it on unmount and
 // exposes the controller to the parent through a ref.

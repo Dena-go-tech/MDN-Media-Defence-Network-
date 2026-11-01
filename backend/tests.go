@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -23,6 +24,7 @@ type Test struct {
 	ID          int64      `json:"id"`
 	Title       string     `json:"title"`
 	Description string     `json:"description"`
+	Level       string     `json:"level"`
 	Questions   []Question `json:"questions"`
 	Published   bool       `json:"published"`
 	CreatedAt   time.Time  `json:"created_at"`
@@ -32,6 +34,7 @@ type TestSummary struct {
 	ID            int64     `json:"id"`
 	Title         string    `json:"title"`
 	Description   string    `json:"description"`
+	Level         string    `json:"level"`
 	QuestionCount int       `json:"question_count"`
 	Published     bool      `json:"published"`
 	CreatedAt     time.Time `json:"created_at"`
@@ -39,7 +42,7 @@ type TestSummary struct {
 
 func (a *App) queryTestSummaries(r *http.Request, where string) ([]TestSummary, error) {
 	rows, err := a.db.Query(r.Context(), `
-		SELECT id, title, description, jsonb_array_length(questions), published, created_at
+		SELECT id, title, description, level, jsonb_array_length(questions), published, created_at
 		FROM tests `+where+` ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
@@ -48,7 +51,7 @@ func (a *App) queryTestSummaries(r *http.Request, where string) ([]TestSummary, 
 	list := []TestSummary{}
 	for rows.Next() {
 		var t TestSummary
-		if err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.QuestionCount, &t.Published, &t.CreatedAt); err != nil {
+		if err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.Level, &t.QuestionCount, &t.Published, &t.CreatedAt); err != nil {
 			return nil, err
 		}
 		list = append(list, t)
@@ -57,12 +60,12 @@ func (a *App) queryTestSummaries(r *http.Request, where string) ([]TestSummary, 
 }
 
 func (a *App) loadTest(r *http.Request, id int64, onlyPublished bool) (*Test, error) {
-	q := `SELECT id, title, description, questions, published, created_at FROM tests WHERE id = $1`
+	q := `SELECT id, title, description, level, questions, published, created_at FROM tests WHERE id = $1`
 	if onlyPublished {
 		q += ` AND published`
 	}
 	var t Test
-	err := a.db.QueryRow(r.Context(), q, id).Scan(&t.ID, &t.Title, &t.Description, &t.Questions, &t.Published, &t.CreatedAt)
+	err := a.db.QueryRow(r.Context(), q, id).Scan(&t.ID, &t.Title, &t.Description, &t.Level, &t.Questions, &t.Published, &t.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +110,7 @@ func (a *App) getTest(w http.ResponseWriter, r *http.Request) {
 		qs[i] = PublicQuestion{Text: q.Text, Options: q.Options}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"id": t.ID, "title": t.Title, "description": t.Description, "questions": qs,
+		"id": t.ID, "title": t.Title, "description": t.Description, "level": t.Level, "questions": qs,
 	})
 }
 
@@ -160,8 +163,9 @@ func (a *App) submitTest(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	total := len(t.Questions)
-	if _, err := a.db.Exec(r.Context(), `INSERT INTO results (user_id, test_id, score, total) VALUES ($1, $2, $3, $4)`,
-		userFrom(r).ID, t.ID, score, total); err != nil {
+	details, _ := json.Marshal(buildDetails(t.Questions, in.Answers))
+	if _, err := a.db.Exec(r.Context(), `INSERT INTO results (user_id, test_id, score, total, details) VALUES ($1, $2, $3, $4, $5)`,
+		userFrom(r).ID, t.ID, score, total, details); err != nil {
 		writeError(w, http.StatusInternalServerError, "db error")
 		return
 	}
@@ -205,6 +209,7 @@ func decodeTest(w http.ResponseWriter, r *http.Request) (*Test, bool) {
 		return nil, false
 	}
 	t.Title = strings.TrimSpace(t.Title)
+	t.Level = strings.TrimSpace(t.Level)
 	if t.Title == "" {
 		writeError(w, http.StatusBadRequest, "title is required")
 		return nil, false
@@ -227,8 +232,8 @@ func (a *App) createTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	err := a.db.QueryRow(r.Context(), `
-		INSERT INTO tests (title, description, questions, published) VALUES ($1, $2, $3, $4)
-		RETURNING id, created_at`, t.Title, t.Description, t.Questions, t.Published).Scan(&t.ID, &t.CreatedAt)
+		INSERT INTO tests (title, description, level, questions, published) VALUES ($1, $2, $3, $4, $5)
+		RETURNING id, created_at`, t.Title, t.Description, t.Level, t.Questions, t.Published).Scan(&t.ID, &t.CreatedAt)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "db error")
 		return
@@ -246,8 +251,8 @@ func (a *App) updateTest(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	tag, err := a.db.Exec(r.Context(), `UPDATE tests SET title=$1, description=$2, questions=$3, published=$4 WHERE id=$5`,
-		t.Title, t.Description, t.Questions, t.Published, id)
+	tag, err := a.db.Exec(r.Context(), `UPDATE tests SET title=$1, description=$2, level=$3, questions=$4, published=$5 WHERE id=$6`,
+		t.Title, t.Description, t.Level, t.Questions, t.Published, id)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "db error")
 		return

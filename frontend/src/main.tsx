@@ -1,54 +1,93 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { BrowserRouter, NavLink, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Link, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './auth'
-import LogoBulb from './LogoBulb'
+import { ICONS, Icon, LogoMark } from './ui'
 import NewsPage from './pages/NewsPage'
 import NewsDetail from './pages/NewsDetail'
 import TestsPage from './pages/TestsPage'
 import TestRun from './pages/TestRun'
-import ProfilePage from './pages/ProfilePage'
+import ProfilePage, { MyResult } from './pages/ProfilePage'
 import AssistantPage from './pages/AssistantPage'
 import LoginPage from './pages/LoginPage'
 import AdminPage from './admin/AdminPage'
 import './styles.css'
 
-const ICONS = {
-  news: 'M4 5h13v14H6a2 2 0 0 1-2-2V5Zm13 4h3v8a2 2 0 0 1-2 2M8 9h5M8 13h5',
-  tests: 'M9 5h10M9 12h10M9 19h10M4 5l1 1 2-2M4 12l1 1 2-2M4 19l1 1 2-2',
-  assistant: 'M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V17h5v-1.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3Zm-2.5 17h5',
-  profile: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 8a7 7 0 0 1 14 0',
-  admin: 'M4 7h10M18 7h2M4 17h2M10 17h10M14 5v4M6 15v4',
-}
-
-function Icon({ d }: { d: string }) {
+function Logo({ title, subtitle }: { title: string; subtitle: React.ReactNode }) {
   return (
-    <svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
-      <path d={d} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
+    <Link to="/" className="logo">
+      <LogoMark />
+      <span className="logo-text">
+        <strong>{title}</strong>
+        <small>{subtitle}</small>
+      </span>
+    </Link>
   )
 }
 
 function Header() {
   const { user } = useAuth()
+  const { pathname } = useLocation()
+  const inTest = /^\/tests\/\d+/.test(pathname)
   return (
     <header className="header">
-      <div className="container header-inner">
-        <NavLink to="/" className="logo">
-          <LogoBulb />
-          <span className="logo-mark">MDN</span>
-          <span className="logo-text">Media Defence Network KG</span>
-        </NavLink>
-        {/* On phones this becomes a fixed bottom tab bar (see .nav in styles.css). */}
-        <nav className="nav">
-          <NavLink to="/" end><Icon d={ICONS.news} />Новости</NavLink>
-          <NavLink to="/tests"><Icon d={ICONS.tests} />Тесты</NavLink>
-          <NavLink to="/assistant"><Icon d={ICONS.assistant} />Ассистент</NavLink>
-          <NavLink to="/profile"><Icon d={ICONS.profile} />{user ? 'Профиль' : 'Войти'}</NavLink>
-          {user?.role === 'admin' && <NavLink to="/admin"><Icon d={ICONS.admin} />Админка</NavLink>}
-        </nav>
+      <div className="container">
+        <div className="header-inner">
+          <Logo title="Media Defence Network" subtitle="Кыргызстан" />
+          {inTest ? (
+            <Link to="/tests" className="btn ghost"><Icon d={ICONS.close} size={16} />Выйти из теста</Link>
+          ) : (
+            <>
+              {/* On phones this becomes a fixed bottom tab bar (see .nav in styles.css). */}
+              <nav className="nav" aria-label="Основное меню">
+                <NavLink to="/" end><Icon d={ICONS.news} className="nav-icon" size={24} />Новости</NavLink>
+                <NavLink to="/tests"><Icon d={ICONS.tests} className="nav-icon" size={24} />Тесты</NavLink>
+                <NavLink to="/assistant"><Icon d={ICONS.assistant} className="nav-icon" size={24} />Ассистент</NavLink>
+                <NavLink to="/profile"><Icon d={ICONS.profile} className="nav-icon" size={24} />{user ? 'Профиль' : 'Войти'}</NavLink>
+                {user?.role === 'admin' && <NavLink to="/admin"><Icon d={ICONS.admin} className="nav-icon" size={24} />Админка</NavLink>}
+              </nav>
+              <Link to="/tests" className="btn header-cta">Пройти тест</Link>
+            </>
+          )}
+        </div>
       </div>
     </header>
+  )
+}
+
+function AdminHeader() {
+  return (
+    <header className="header">
+      <div className="container">
+        <div className="header-inner">
+          <Logo title="Media Defence Network" subtitle={<span className="admin-tag">Админка</span>} />
+          <nav className="admin-nav" aria-label="Разделы админки">
+            <NavLink to="/admin" end>Аналитика</NavLink>
+            <NavLink to="/admin/students">Студенты</NavLink>
+            <NavLink to="/admin/news">Новости</NavLink>
+            <NavLink to="/admin/tests">Тесты</NavLink>
+            <NavLink to="/admin/assistant">Ассистент</NavLink>
+          </nav>
+          <Link to="/" className="btn secondary">На портал</Link>
+        </div>
+      </div>
+    </header>
+  )
+}
+
+function Footer() {
+  return (
+    <footer className="footer">
+      <div className="container footer-inner">
+        <span><strong>Media Defence Network KG</strong> · © {new Date().getFullYear()}</span>
+        <nav aria-label="Ссылки в подвале">
+          <Link to="/">Новости</Link>
+          <Link to="/tests">Тесты</Link>
+          <Link to="/assistant">ИИ-ассистент</Link>
+          <Link to="/profile">Профиль</Link>
+        </nav>
+      </div>
+    </footer>
   )
 }
 
@@ -60,9 +99,10 @@ function RequireAdmin({ children }: { children: React.ReactNode }) {
 }
 
 function App() {
+  const isAdmin = useLocation().pathname.startsWith('/admin')
   return (
     <>
-      <Header />
+      {isAdmin ? <AdminHeader /> : <Header />}
       <main className="container main">
         <Routes>
           <Route path="/" element={<NewsPage />} />
@@ -71,14 +111,13 @@ function App() {
           <Route path="/tests/:id" element={<TestRun />} />
           <Route path="/assistant" element={<AssistantPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/profile/results/:id" element={<MyResult />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/admin/*" element={<RequireAdmin><AdminPage /></RequireAdmin>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
-      <footer className="footer">
-        <div className="container">© {new Date().getFullYear()} Media Defence Network of Kyrgyzstan</div>
-      </footer>
+      {!isAdmin && <Footer />}
     </>
   )
 }

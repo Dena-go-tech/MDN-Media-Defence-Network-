@@ -17,6 +17,7 @@ type App struct {
 	jwtSecret   []byte
 	claude      *anthropic.Client
 	claudeModel string
+	uploadDir   string
 }
 
 func env(key, def string) string {
@@ -63,12 +64,18 @@ func main() {
 		log.Fatalf("migrate: %v", err)
 	}
 
-	app := &App{db: db, jwtSecret: []byte(env("JWT_SECRET", "dev-secret-change-me")), claudeModel: env("ANTHROPIC_MODEL", "claude-opus-5-5")}
+	app := &App{db: db, jwtSecret: []byte(env("JWT_SECRET", "dev-secret-change-me")), claudeModel: env("ANTHROPIC_MODEL", "claude-opus-5-5"), uploadDir: env("UPLOAD_DIR", "/data/uploads")}
+	if err := os.MkdirAll(app.uploadDir, 0o755); err != nil {
+		log.Fatalf("upload dir: %v", err)
+	}
 	if os.Getenv("ANTHROPIC_API_KEY") != "" {
 		c := anthropic.NewClient()
 		app.claude = &c
 	} else {
 		log.Print("ANTHROPIC_API_KEY is not set: AI assistant is disabled")
+	}
+	if err := seedSettings(ctx, app); err != nil {
+		log.Fatalf("seed settings: %v", err)
 	}
 	if err := app.seedAdmin(ctx, env("ADMIN_EMAIL", "admin@mdn.kg"), env("ADMIN_PASSWORD", "admin123")); err != nil {
 		log.Fatalf("seed admin: %v", err)
@@ -90,6 +97,10 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("POST /api/auth/login", a.login)
 	mux.HandleFunc("GET /api/me", a.requireAuth(a.me))
 	mux.HandleFunc("GET /api/me/results", a.requireAuth(a.myResults))
+	mux.HandleFunc("GET /api/me/results/{id}", a.requireAuth(a.myResult))
+
+	mux.Handle("GET /uploads/", a.serveUploads())
+	mux.HandleFunc("POST /api/admin/uploads", a.requireAdmin(a.uploadImage))
 
 	mux.HandleFunc("GET /api/assistant/status", a.assistantStatus)
 	mux.HandleFunc("GET /api/assistant/scripts", a.listScripts)
@@ -102,10 +113,18 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /api/tests/{id}", a.getTest)
 	mux.HandleFunc("POST /api/tests/{id}/submit", a.requireAuth(a.submitTest))
 
+	mux.HandleFunc("GET /api/admin/stats", a.requireAdmin(a.adminStats))
+	mux.HandleFunc("GET /api/admin/results/{id}", a.requireAdmin(a.adminResult))
+	mux.HandleFunc("GET /api/admin/students", a.requireAdmin(a.adminStudents))
+	mux.HandleFunc("GET /api/admin/students/{id}", a.requireAdmin(a.adminStudent))
+
 	mux.HandleFunc("GET /api/admin/news", a.requireAdmin(a.adminListNews))
 	mux.HandleFunc("POST /api/admin/news", a.requireAdmin(a.createNews))
 	mux.HandleFunc("PUT /api/admin/news/{id}", a.requireAdmin(a.updateNews))
 	mux.HandleFunc("DELETE /api/admin/news/{id}", a.requireAdmin(a.deleteNews))
+
+	mux.HandleFunc("GET /api/admin/assistant/settings", a.requireAdmin(a.adminGetSettings))
+	mux.HandleFunc("PUT /api/admin/assistant/settings", a.requireAdmin(a.adminUpdateSettings))
 
 	mux.HandleFunc("GET /api/admin/scripts", a.requireAdmin(a.adminListScripts))
 	mux.HandleFunc("POST /api/admin/scripts", a.requireAdmin(a.createScript))

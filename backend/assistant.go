@@ -12,24 +12,6 @@ import (
 	"github.com/anthropics/anthropic-sdk-go/v2/shared/constant"
 )
 
-const assistantSystem = `Ты BuddyAI, помощник платформы Media Defence Network of Kyrgyzstan. Ты помогаешь журналистам и обычным читателям проверять информацию: новости, сообщения из мессенджеров, цитаты, фото-подписи, ссылки.
-
-Как работать:
-- Если пользователь прислал утверждение или новость, проверь её через веб-поиск. Опирайся на первоисточники и надёжные СМИ, называй их.
-- Отвечай кратко и по делу, на языке пользователя (русский, кыргызский или английский). Без длинных вступлений.
-- Пиши простым текстом без Markdown: без звёздочек, решёток и таблиц. Абзацы разделяй пустой строкой, ссылки давай полным URL.
-- Объясни, почему ты пришёл к выводу, и дай 1-3 совета, как читателю проверить подобное самому.
-- Если данных мало, честно скажи, что подтвердить не удалось.
-- На обычные вопросы о медиаграмотности и цифровой безопасности отвечай без поиска.
-
-В самом конце ответа, отдельной последней строкой, поставь ровно одну метку вердикта:
-[[VERDICT:verified]] — утверждение подтверждено;
-[[VERDICT:fake]] — утверждение ложно или это манипуляция;
-[[VERDICT:doubt]] — недостаточно данных, сомнительно;
-[[VERDICT:warning]] — мошенничество, фишинг или опасность для читателя;
-[[VERDICT:none]] — вопрос не про проверку факта.
-Метку не объясняй и не упоминай в тексте.`
-
 const (
 	maxHistory     = 20
 	maxMessageLen  = 8000
@@ -62,9 +44,7 @@ func (a *App) assistantChat(w http.ResponseWriter, r *http.Request) {
 		if text == "" {
 			continue
 		}
-		if len(text) > maxMessageLen {
-			text = text[:maxMessageLen]
-		}
+		text = truncate(text, maxMessageLen)
 		block := anthropic.NewBetaTextBlock(text)
 		switch m.Role {
 		case "user":
@@ -76,6 +56,22 @@ func (a *App) assistantChat(w http.ResponseWriter, r *http.Request) {
 	if len(msgs) == 0 || in.Messages[len(in.Messages)-1].Role != "user" {
 		writeError(w, http.StatusBadRequest, "last message must be from the user")
 		return
+	}
+
+	cfg, err := a.loadSettings(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "db error")
+		return
+	}
+	system := []anthropic.BetaTextBlockParam{{Text: cfg.SystemPrompt + "\n\n" + verdictInstructions}}
+	if cfg.SiteContext {
+		siteText, _, _, err := a.siteContext(r.Context())
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "db error")
+			return
+		}
+		// The site context is the large, rarely changing part: cache it between requests.
+		system = append(system, anthropic.BetaTextBlockParam{Text: siteText, CacheControl: anthropic.NewBetaCacheControlEphemeralParam()})
 	}
 
 	flusher, ok := w.(http.Flusher)
@@ -97,14 +93,16 @@ func (a *App) assistantChat(w http.ResponseWriter, r *http.Request) {
 	params := anthropic.BetaMessageNewParams{
 		Model:        a.claudeModel,
 		MaxTokens:    64000,
-		System:       []anthropic.BetaTextBlockParam{{Text: assistantSystem}},
+		System:       system,
 		OutputConfig: anthropic.BetaOutputConfigParam{Effort: anthropic.BetaOutputConfigEffortMedium},
-		Tools: []anthropic.BetaToolUnionParam{{
+		Fallbacks:    anthropic.BetaFallbacksParamUnion{OfDefault: constant.ValueOf[constant.Default]()},
+		Betas:        []anthropic.AnthropicBeta{anthropic.AnthropicBetaServerSideFallback2026_07_01},
+		Messages:     msgs,
+	}
+	if cfg.WebSearch {
+		params.Tools = []anthropic.BetaToolUnionParam{{
 			OfWebSearchTool20260209: &anthropic.BetaWebSearchTool20260209Param{MaxUses: param.NewOpt[int64](5)},
-		}},
-		Fallbacks: anthropic.BetaFallbacksParamUnion{OfDefault: constant.ValueOf[constant.Default]()},
-		Betas:     []anthropic.AnthropicBeta{anthropic.AnthropicBetaServerSideFallback2026_07_01},
-		Messages:  msgs,
+		}}
 	}
 
 	// The web search tool runs server-side; a long search turn may come back as

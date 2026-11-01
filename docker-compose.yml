@@ -18,6 +18,8 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    volumes:
+      - ./data/uploads:/data/uploads # images uploaded through the admin panel
     depends_on:
       db:
         condition: service_healthy

@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
-import { Link } from 'react-router-dom'
-import { token, type Script, type Verdict } from '../api'
+import { Link, useSearchParams } from 'react-router-dom'
+import { token, type News, type Script, type TestSummary, type Verdict } from '../api'
 import { useAuth } from '../auth'
 import Bulb from '../Bulb'
-import type { BulbController, PoseName } from '../lib/buddy-bulb.js'
+import type { BulbController, PoseName } from '../lib/bulb-ai.js'
 import { useFetch } from '../useFetch'
+import { Arrow, ICONS } from '../ui'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -26,7 +27,7 @@ const EXAMPLES = [
   'Мне пришла SMS «Ваша карта заблокирована, перейдите по ссылке». Что делать?',
 ]
 
-const GREETING = 'Привет! Я BuddyAI. Пришлите новость, сообщение или ссылку, и я помогу проверить, правда это или фейк.'
+const GREETING = 'Привет! Я BulbAI. Пришлите новость, сообщение или ссылку, и я помогу проверить, правда это или фейк.'
 const DEMO_FALLBACK =
   'Пока я работаю в демо-режиме и отвечаю только на подготовленные вопросы. Выберите один из вопросов ниже, а скоро я научусь проверять любые сообщения.'
 
@@ -67,12 +68,23 @@ function speakAloud(text: string) {
   speechSynthesis.speak(u)
 }
 
-function Linkified({ text }: { text: string }) {
-  const parts = text.split(/(https?:\/\/[^\s)]+)/g)
+// Site paths the AI cites for articles and tests, e.g. /news/12 or /tests/3.
+const SITE_PATH = /(?<![\w/])\/(?:news|tests)\/\d+/g
+type Titles = Record<string, string>
+
+// The AI cites site materials by path; readers should see (and hear) the title instead.
+const withTitles = (text: string, titles: Titles) =>
+  text.replace(SITE_PATH, (p) => titles[p] ?? 'материал на сайте')
+
+// External URLs open in a new tab; site paths become in-app links labelled with the material's title.
+function Linkified({ text, titles }: { text: string; titles: Titles }) {
+  const parts = text.split(/(https?:\/\/[^\s)]+|(?<![\w/])\/(?:news|tests)\/\d+)/g)
   return (
     <>
       {parts.map((p, i) =>
-        /^https?:\/\//.test(p) ? <a key={i} href={p} target="_blank" rel="noreferrer">{p}</a> : p,
+        /^https?:\/\//.test(p) ? <a key={i} href={p} target="_blank" rel="noreferrer">{p}</a>
+          : /^\/(news|tests)\/\d+$/.test(p) ? <Link key={i} to={p}>{titles[p] ?? 'материал на сайте'}</Link>
+          : p,
       )}
     </>
   )
@@ -82,11 +94,18 @@ export default function AssistantPage() {
   const { user, loading } = useAuth()
   const status = useFetch<{ ai: boolean }>('/assistant/status')
   const scripts = useFetch<Script[]>('/assistant/scripts')
+  const newsList = useFetch<News[]>('/news')
+  const testList = useFetch<TestSummary[]>('/tests')
+  const titles: Titles = {}
+  newsList.data?.forEach((n) => { titles[`/news/${n.id}`] = n.title })
+  testList.data?.forEach((t) => { titles[`/tests/${t.id}`] = `«${t.title}»` })
   const demo = status.data ? !status.data.ai : true
   const bulb = useRef<BulbController | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout>>()
   const [messages, setMessages] = useState<Message[]>([])
-  const [input, setInput] = useState('')
+  // Questions typed on other pages arrive as ?q=… and land in the input box.
+  const [searchParams] = useSearchParams()
+  const [input, setInput] = useState(searchParams.get('q') ?? '')
   const [busy, setBusy] = useState(false)
   const [phase, setPhase] = useState<'idle' | 'analyze' | 'search' | 'speak'>('idle')
   const [verdict, setVerdict] = useState<Verdict | null>(null)
@@ -191,7 +210,7 @@ export default function AssistantPage() {
         }
       }
       updateLast((m) => ({ ...m, content: visible(raw) }))
-      if (voice) speakAloud(visible(raw))
+      if (voice) speakAloud(withTitles(visible(raw), titles))
       finish((raw.match(VERDICT_RE)?.[1] ?? 'none') as Verdict)
     } catch (e) {
       updateLast(() => ({ role: 'assistant', content: (e as Error).message, error: true }))
@@ -252,12 +271,15 @@ export default function AssistantPage() {
       <aside className="assistant-stage">
         <Bulb ref={bulb} expressions="some" />
         <div className="assistant-status" aria-live="polite">
-          <span className="muted">BuddyAI</span>
+          <span className="muted">BulbAI</span>
           <strong>{statusText}</strong>
         </div>
         {hasVoice && (
           <button className="btn secondary voice-toggle" onClick={toggleVoice} aria-pressed={voice}>
-            {voice ? '🔊 Голос включён' : '🔇 Голос выключен'}
+            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d={ICONS.speaker} /><path d={voice ? ICONS.waveOn : ICONS.waveOff} />
+            </svg>
+            {voice ? 'Голос включён' : 'Голос выключен'}
           </button>
         )}
       </aside>
@@ -284,15 +306,17 @@ export default function AssistantPage() {
                 </span>
               )}
               {m.content
-                ? m.content.split('\n').map((line, j) => (line ? <p key={j}><Linkified text={line} /></p> : null))
+                ? m.content.split('\n').map((line, j) => (line ? <p key={j}><Linkified text={line} titles={titles} /></p> : null))
                 : <p className="muted">{phase === 'search' ? 'Ищу источники…' : 'Думаю…'}</p>}
             </div>
           ))}
           {!busy && examples.length > 0 && (
             <div className="chat-empty">
-              <p className="muted">{messages.length ? 'Ещё вопросы:' : 'Попробуйте спросить:'}</p>
+              <p className="label">{messages.length ? 'Ещё вопросы' : 'Попробуйте спросить'}</p>
               {examples.map((ex) => (
-                <button key={ex} className="example" disabled={!canAsk} onClick={() => send(ex)}>{ex}</button>
+                <button key={ex} className="example" disabled={!canAsk} onClick={() => send(ex)}>
+                  <span>{ex}</span><span className="example-arrow"><Arrow /></span>
+                </button>
               ))}
             </div>
           )}

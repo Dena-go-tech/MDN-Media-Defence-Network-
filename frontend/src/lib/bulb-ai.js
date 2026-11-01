@@ -1,5 +1,5 @@
 /*
- * BuddyAI Bulb: 2D vector character with poses, verdict shield and a word-driven emotion player.
+ * BulbAI: 2D vector character with poses, verdict shield and a word-driven emotion player.
  * Zero dependencies. ES module. Draws an inline <svg> (viewBox 0 0 320 380).
  * See IMPORT.md for usage.
  */
@@ -70,7 +70,7 @@ function f(n) { return Math.round(n * 100) / 100; }
 
 function markup(u) {
   var s = '';
-  s += '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 380" width="320" height="380" style="overflow:visible" role="img" aria-label="Персонаж BuddyAI Bulb">';
+  s += '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 380" width="320" height="380" style="overflow:visible" role="img" aria-label="Персонаж BulbAI">';
   s += '<defs>';
   s += '<radialGradient id="halo' + u + '"><stop offset="0" stop-color="#F7CB55" stop-opacity=".5"/><stop offset=".55" stop-color="#F7CB55" stop-opacity=".16"/><stop offset="1" stop-color="#F7CB55" stop-opacity="0"/></radialGradient>';
   s += '<radialGradient id="core' + u + '" cx=".5" cy=".4" r=".7"><stop offset="0" stop-color="#FFEDB0"/><stop offset=".6" stop-color="#F7CB55"/><stop offset="1" stop-color="#EBA23B"/></radialGradient>';
@@ -283,7 +283,7 @@ export function createBulb(host, options) {
     if (!P[n]) return;
     poseName = n;
     tgt = Object.assign({}, P[n]);
-    ch.el.setAttribute('aria-label', 'BuddyAI Bulb: ' + NAMES[n]);
+    ch.el.setAttribute('aria-label', 'BulbAI: ' + NAMES[n]);
     if (opts.onPose) opts.onPose(n);
     if (RM) { Object.assign(cur, tgt); drawNow(); }
   }

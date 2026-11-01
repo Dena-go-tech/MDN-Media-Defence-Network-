@@ -4,7 +4,7 @@ import { useFetch } from '../useFetch'
 
 type Draft = Omit<Script, 'id' | 'created_at'> & { id?: number }
 
-const empty: Draft = { question: '', answer: '', verdict: 'none', position: 0, published: true }
+const empty = (): Draft => ({ question: '', answer: '', verdict: 'none', position: 0, published: true })
 
 const VERDICT_OPTIONS: { value: Verdict; label: string }[] = [
   { value: 'none', label: 'Без вердикта' },
@@ -16,18 +16,19 @@ const VERDICT_OPTIONS: { value: Verdict; label: string }[] = [
 
 export default function ScriptsAdmin() {
   const { data, reload } = useFetch<Script[]>('/admin/scripts')
-  const [draft, setDraft] = useState<Draft | null>(null)
+  const [draft, setDraft] = useState<Draft>(empty)
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
 
-  const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setDraft((d) => d && { ...d, [k]: v })
+  const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setDraft((d) => ({ ...d, [k]: v }))
 
   const save = async (e: FormEvent) => {
     e.preventDefault()
-    if (!draft) return
     try {
       if (draft.id) await api(`/admin/scripts/${draft.id}`, { method: 'PUT', body: draft })
       else await api('/admin/scripts', { method: 'POST', body: draft })
-      setDraft(null)
+      setNotice(draft.id ? 'Изменения сохранены.' : 'Ответ добавлен.')
+      setDraft(empty())
       setError(null)
       reload()
     } catch (err) {
@@ -38,13 +39,38 @@ export default function ScriptsAdmin() {
   const remove = async (s: Script) => {
     if (!confirm(`Удалить вопрос «${s.question}»?`)) return
     await api(`/admin/scripts/${s.id}`, { method: 'DELETE' })
+    if (draft.id === s.id) setDraft(empty())
     reload()
   }
 
-  if (draft) {
-    return (
-      <form className="admin-form" onSubmit={save}>
-        <h2>{draft.id ? 'Редактировать ответ ассистента' : 'Новый ответ ассистента'}</h2>
+  return (
+    <div className="two-col">
+      <section className="admin-list">
+        <div className="list-head">
+          <h1>Демо-ответы</h1>
+          <span className="pill">{data?.length ?? 0} шт.</span>
+        </div>
+        <p className="muted">Используются, только когда ИИ не подключён: ассистент работает в демо-режиме и произносит эти ответы. Если пользователь пишет свой вопрос, выбирается ответ с самым похожим вопросом.</p>
+        <button className="btn secondary block" onClick={() => { setDraft(empty()); setNotice(null) }}>+ Новый ответ</button>
+        {data?.map((s) => (
+          <div key={s.id} className={`admin-item${draft.id === s.id ? ' current' : ''}`}>
+            <div className="admin-item-head">
+              <strong>{s.question}</strong>
+              <span className={`pill${s.published ? '' : ' pink'}`}>{s.published ? 'Показывается' : 'Скрыт'}</span>
+            </div>
+            <span className="muted">{VERDICT_OPTIONS.find((o) => o.value === s.verdict)?.label.split(' (')[0]}</span>
+            <div className="row">
+              <button className="btn dark small" onClick={() => { setDraft(s); setNotice(null); setError(null) }}>Редактировать</button>
+              <button className="link-btn danger" onClick={() => remove(s)}>Удалить</button>
+            </div>
+          </div>
+        ))}
+      </section>
+
+      <form className="editor" onSubmit={save}>
+        <div className="editor-head">
+          <h2>{draft.id ? 'Редактировать ответ' : 'Новый ответ ассистента'}</h2>
+        </div>
         <label>Вопрос пользователя (показывается кнопкой на странице ассистента)
           <textarea rows={2} value={draft.question} onChange={(e) => set('question', e.target.value)} required />
         </label>
@@ -60,37 +86,13 @@ export default function ScriptsAdmin() {
           <input type="number" value={draft.position} onChange={(e) => set('position', Number(e.target.value))} />
         </label>
         <label className="check"><input type="checkbox" checked={draft.published} onChange={(e) => set('published', e.target.checked)} /> Показывать на сайте</label>
-        {error && <p className="error">{error}</p>}
-        <div className="row">
+        <div className="editor-foot">
           <button className="btn" type="submit">Сохранить</button>
-          <button className="btn secondary" type="button" onClick={() => setDraft(null)}>Отмена</button>
+          {draft.id && <button className="btn secondary" type="button" onClick={() => setDraft(empty())}>Отмена</button>}
+          {error && <span className="error" role="status">{error}</span>}
+          {notice && !error && <span className="ok-text" role="status">{notice}</span>}
         </div>
       </form>
-    )
-  }
-
-  return (
-    <>
-      <p className="muted">Пока ИИ не подключён, ассистент работает в демо-режиме и произносит эти ответы. Если пользователь пишет свой вопрос, выбирается ответ с самым похожим вопросом.</p>
-      <button className="btn" onClick={() => setDraft({ ...empty })}>+ Добавить ответ</button>
-      <table className="table">
-        <thead>
-          <tr><th>Вопрос</th><th>Вердикт</th><th>Статус</th><th /></tr>
-        </thead>
-        <tbody>
-          {data?.map((s) => (
-            <tr key={s.id}>
-              <td>{s.question}</td>
-              <td>{VERDICT_OPTIONS.find((o) => o.value === s.verdict)?.label.split(' (')[0]}</td>
-              <td>{s.published ? 'Показывается' : 'Скрыт'}</td>
-              <td className="actions">
-                <button className="link-btn" onClick={() => setDraft(s)}>Изменить</button>
-                <button className="link-btn danger" onClick={() => remove(s)}>Удалить</button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </>
+    </div>
   )
 }
