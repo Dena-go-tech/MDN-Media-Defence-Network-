@@ -36,16 +36,11 @@ export default function SurveyResults() {
 
       <div className="stats">
         <div className="stat"><span>Ответов всего</span><strong>{data.responses}</strong></div>
-        <div className="stat"><span>Из Google Формы</span><strong>{data.by_source.import}</strong></div>
-        <div className="stat"><span>С сайта</span><strong>{data.by_source.site}</strong></div>
-        <div className="stat"><span>Последний с сайта</span><strong className="stat-small">{data.last_at ? formatTime(data.last_at) : '—'}</strong></div>
+        <div className="stat"><span>На кыргызском</span><strong>{data.by_lang.ky}</strong></div>
+        <div className="stat"><span>На русском</span><strong>{data.by_lang.ru}</strong></div>
+        <div className="stat"><span>Последний ответ</span><strong className="stat-small">{data.last_at ? formatTime(data.last_at) : '—'}</strong></div>
       </div>
-      {data.by_source.import > 0 && (
-        <p className="muted small">
-          Ответы из Google Формы загружены по итогам опроса (n = {data.by_source.import}); в импорте есть только вопросы, вынесенные в презентацию,
-          у остальных вопросов в этой части выборки нет данных. Проценты считаются от ответивших на вопрос.
-        </p>
-      )}
+      <p className="muted small">Проценты считаются от ответивших на вопрос.</p>
 
       {data.responses === 0 ? (
         <div className="empty">Ответов пока нет. Опрос открыт по ссылке <Link to={`/tests/${data.id}`} className="link">/tests/{data.id}</Link> и в разделе «Тесты».</div>
