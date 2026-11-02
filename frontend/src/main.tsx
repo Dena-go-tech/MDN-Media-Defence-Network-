@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter, Link, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './auth'
+import { LangProvider, LangSwitch, useLang } from './i18n'
 import { ICONS, Icon, LogoMark } from './ui'
 import NewsPage from './pages/NewsPage'
 import NewsDetail from './pages/NewsDetail'
@@ -27,6 +28,7 @@ function Logo({ title, subtitle }: { title: string; subtitle: React.ReactNode })
 
 function Header() {
   const { user } = useAuth()
+  const { t } = useLang()
   const { pathname } = useLocation()
   const inTest = /^\/tests\/\d+/.test(pathname)
   return (
@@ -35,18 +37,24 @@ function Header() {
         <div className="header-inner">
           <Logo title="Media Defence Network" subtitle="Кыргызстан" />
           {inTest ? (
-            <Link to="/tests" className="btn ghost"><Icon d={ICONS.close} size={16} />Выйти из теста</Link>
+            <div className="header-tools">
+              <LangSwitch />
+              <Link to="/tests" className="btn ghost exit-btn" aria-label={t('header.exitTest')}><Icon d={ICONS.close} size={16} /><span>{t('header.exitTest')}</span></Link>
+            </div>
           ) : (
             <>
               {/* On phones this becomes a fixed bottom tab bar (see .nav in styles.css). */}
-              <nav className="nav" aria-label="Основное меню">
-                <NavLink to="/" end><Icon d={ICONS.news} className="nav-icon" size={24} />Новости</NavLink>
-                <NavLink to="/tests"><Icon d={ICONS.tests} className="nav-icon" size={24} />Тесты</NavLink>
-                <NavLink to="/assistant"><Icon d={ICONS.assistant} className="nav-icon" size={24} />Ассистент</NavLink>
-                <NavLink to="/profile"><Icon d={ICONS.profile} className="nav-icon" size={24} />{user ? 'Профиль' : 'Войти'}</NavLink>
-                {user?.role === 'admin' && <NavLink to="/admin"><Icon d={ICONS.admin} className="nav-icon" size={24} />Админка</NavLink>}
+              <nav className="nav" aria-label={t('nav.main')}>
+                <NavLink to="/" end><Icon d={ICONS.news} className="nav-icon" size={24} />{t('nav.news')}</NavLink>
+                <NavLink to="/tests"><Icon d={ICONS.tests} className="nav-icon" size={24} />{t('nav.tests')}</NavLink>
+                <NavLink to="/assistant"><Icon d={ICONS.assistant} className="nav-icon" size={24} />{t('nav.assistant')}</NavLink>
+                <NavLink to="/profile"><Icon d={ICONS.profile} className="nav-icon" size={24} />{user ? t('nav.profile') : t('nav.login')}</NavLink>
+                {user?.role === 'admin' && <NavLink to="/admin"><Icon d={ICONS.admin} className="nav-icon" size={24} />{t('nav.admin')}</NavLink>}
               </nav>
-              <Link to="/tests" className="btn header-cta">Пройти тест</Link>
+              <div className="header-tools">
+                <LangSwitch />
+                <Link to="/tests" className="btn header-cta">{t('header.cta')}</Link>
+              </div>
             </>
           )}
         </div>
@@ -65,7 +73,7 @@ function AdminHeader() {
             <NavLink to="/admin" end>Аналитика</NavLink>
             <NavLink to="/admin/students">Студенты</NavLink>
             <NavLink to="/admin/news">Новости</NavLink>
-            <NavLink to="/admin/tests">Тесты</NavLink>
+            <NavLink to="/admin/tests">Тесты и опросы</NavLink>
             <NavLink to="/admin/assistant">Ассистент</NavLink>
           </nav>
           <Link to="/" className="btn secondary">На портал</Link>
@@ -76,15 +84,16 @@ function AdminHeader() {
 }
 
 function Footer() {
+  const { t } = useLang()
   return (
     <footer className="footer">
       <div className="container footer-inner">
         <span><strong>Media Defence Network KG</strong> · © {new Date().getFullYear()}</span>
-        <nav aria-label="Ссылки в подвале">
-          <Link to="/">Новости</Link>
-          <Link to="/tests">Тесты</Link>
-          <Link to="/assistant">ИИ-ассистент</Link>
-          <Link to="/profile">Профиль</Link>
+        <nav aria-label={t('footer.links')}>
+          <Link to="/">{t('nav.news')}</Link>
+          <Link to="/tests">{t('nav.tests')}</Link>
+          <Link to="/assistant">{t('footer.assistant')}</Link>
+          <Link to="/profile">{t('nav.profile')}</Link>
         </nav>
       </div>
     </footer>
@@ -125,9 +134,11 @@ function App() {
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <BrowserRouter>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
+      <LangProvider>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </LangProvider>
     </BrowserRouter>
   </React.StrictMode>,
 )

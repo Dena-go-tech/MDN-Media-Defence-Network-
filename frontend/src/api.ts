@@ -16,12 +16,29 @@ export interface News {
   featured: boolean
   published: boolean
   created_at: string
+  ky?: NewsText
 }
+
+export interface NewsText {
+  title: string
+  summary: string
+  body: string
+}
+
+export type TestKind = 'quiz' | 'survey'
 
 export interface Question {
   text: string
   options: string[]
   correct: number
+  multiple?: boolean
+  optional?: boolean
+}
+
+export interface TestText {
+  title: string
+  description: string
+  questions: { text: string; options: string[] }[]
 }
 
 export interface TestSummary {
@@ -29,9 +46,11 @@ export interface TestSummary {
   title: string
   description: string
   level: string
+  kind: TestKind
   question_count: number
   published: boolean
   created_at: string
+  responses: number
 }
 
 export interface PublicTest {
@@ -39,7 +58,8 @@ export interface PublicTest {
   title: string
   description: string
   level: string
-  questions: { text: string; options: string[] }[]
+  kind: TestKind
+  questions: { text: string; options: string[]; multiple?: boolean; optional?: boolean }[]
 }
 
 export interface Test {
@@ -47,8 +67,21 @@ export interface Test {
   title: string
   description: string
   level: string
+  kind: TestKind
   questions: Question[]
   published: boolean
+  ky?: TestText
+}
+
+export interface SurveyStats {
+  id: number
+  title: string
+  title_ky: string
+  published: boolean
+  responses: number
+  by_lang: { ru: number; ky: number }
+  last_at: string | null
+  questions: { text: string; text_ky: string; options: string[]; multiple: boolean; optional: boolean; counts: number[]; answered: number }[]
 }
 
 export interface Result {
@@ -150,6 +183,31 @@ export const categoryColor = (c: string) => CATEGORY_COLORS[c] ?? '#e8e3d5'
 
 export const readMinutes = (text: string) => Math.max(1, Math.round(text.split(/\s+/).filter(Boolean).length / 180))
 
+export type Lang = 'ru' | 'ky'
+const LANG_KEY = 'mdn_lang'
+
+/** Portal language (shown as RU / KG). Kept outside React so api() can read it. */
+export const langStore = {
+  get: (): Lang => {
+    try {
+      return localStorage.getItem(LANG_KEY) === 'ky' ? 'ky' : 'ru'
+    } catch {
+      return 'ru'
+    }
+  },
+  set: (l: Lang) => {
+    try {
+      localStorage.setItem(LANG_KEY, l)
+    } catch { /* private mode: the choice just isn't remembered */ }
+  },
+}
+
+// Browsers often ship without Kyrgyz locale data (dates come out in English), so Kyrgyz dates are formatted by hand.
+const KY_MONTHS = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь']
+// The admin panel stays in Russian whatever the portal language is.
+const isKY = () => langStore.get() === 'ky' && !window.location.pathname.startsWith('/admin')
+const pad = (n: number) => String(n).padStart(2, '0')
+
 const TOKEN_KEY = 'mdn_token'
 
 export const token = {
@@ -162,6 +220,10 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   const t = token.get()
   if (t) headers.Authorization = `Bearer ${t}`
+  // Public content comes back translated when the portal is in Kyrgyz.
+  if ((init.method ?? 'GET') === 'GET' && langStore.get() === 'ky' && !path.startsWith('/admin')) {
+    path += (path.includes('?') ? '&' : '?') + 'lang=ky'
+  }
   const res = await fetch(`/api${path}`, {
     method: init.method ?? 'GET',
     headers,
@@ -173,11 +235,20 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
   return data as T
 }
 
-export const formatDate = (s: string) =>
-  new Date(s).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
+export const formatDate = (s: string) => {
+  const d = new Date(s)
+  return isKY()
+    ? `${d.getFullYear()}-ж. ${d.getDate()}-${KY_MONTHS[d.getMonth()]}`
+    : d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
+}
 
-export const formatShortDate = (s: string) =>
-  new Date(s).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })
+export const formatShortDate = (s: string) => {
+  const d = new Date(s)
+  return isKY() ? `${d.getDate()}-${KY_MONTHS[d.getMonth()]}` : d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })
+}
 
-export const formatTime = (s: string) =>
-  new Date(s).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+export const formatTime = (s: string) => {
+  const d = new Date(s)
+  if (isKY()) return `${d.getDate()}-${KY_MONTHS[d.getMonth()]}, ${pad(d.getHours())}:${pad(d.getMinutes())}`
+  return d.toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+}

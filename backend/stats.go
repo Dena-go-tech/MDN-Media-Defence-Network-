@@ -51,7 +51,7 @@ func (a *App) adminStats(w http.ResponseWriter, r *http.Request) {
 		SELECT count(*),
 		       COALESCE(round(avg(score * 100.0 / NULLIF(total, 0))), 0)::int,
 		       count(DISTINCT user_id),
-		       (SELECT count(*) FROM tests WHERE published)
+		       (SELECT count(*) FROM tests WHERE published AND kind = 'quiz')
 		FROM results`).Scan(&s.Attempts, &s.AvgPct, &s.Users, &s.PublishedTests)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "db error")
@@ -62,6 +62,7 @@ func (a *App) adminStats(w http.ResponseWriter, r *http.Request) {
 		SELECT t.id, t.title, count(r.id),
 		       COALESCE(round(avg(r.score * 100.0 / NULLIF(r.total, 0))), 0)::int
 		FROM tests t LEFT JOIN results r ON r.test_id = t.id
+		WHERE t.kind = 'quiz'
 		GROUP BY t.id ORDER BY count(r.id) DESC, t.title`)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "db error")

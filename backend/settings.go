@@ -75,7 +75,7 @@ func (a *App) siteContext(ctx context.Context) (text string, news, tests int, er
 	b.WriteString("Ниже материалы сайта Media Defence Network KG на текущий момент. Это твоя база знаний о содержимом платформы: Чтобы сослаться на материал, напиши его путь из атрибута path (например /news/12 или /tests/3): на сайте путь автоматически заменяется кликабельным названием материала. Поэтому не пиши название рядом с путём и не бери его в кавычки, иначе оно повторится дважды. Если пользователь просит ссылку на материал, дай именно путь. Не придумывай пути, которых нет в списке. Если ответа в материалах нет, так и скажи или используй другие источники.\n\n")
 
 	rows, err := a.db.Query(ctx, `
-		SELECT id, title, category, summary, body, created_at FROM news
+		SELECT id, title, ky->>'title', category, summary, body, created_at FROM news
 		WHERE published ORDER BY featured DESC, created_at DESC LIMIT $1`, contextNewsLimit)
 	if err != nil {
 		return "", 0, 0, err
@@ -84,14 +84,18 @@ func (a *App) siteContext(ctx context.Context) (text string, news, tests int, er
 		var (
 			id                        int64
 			title, cat, summary, body string
+			titleKY                   *string
 			created                   time.Time
 		)
-		if err := rows.Scan(&id, &title, &cat, &summary, &body, &created); err != nil {
+		if err := rows.Scan(&id, &title, &titleKY, &cat, &summary, &body, &created); err != nil {
 			rows.Close()
 			return "", 0, 0, err
 		}
 		news++
 		fmt.Fprintf(&b, "<news path=\"/news/%d\" category=%q date=\"%s\">\nЗаголовок: %s\n", id, cat, created.Format("2006-01-02"), title)
+		if titleKY != nil && *titleKY != "" {
+			fmt.Fprintf(&b, "Заголовок на кыргызском: %s\n", *titleKY)
+		}
 		if summary != "" {
 			fmt.Fprintf(&b, "Кратко: %s\n", summary)
 		}
@@ -102,7 +106,7 @@ func (a *App) siteContext(ctx context.Context) (text string, news, tests int, er
 		return "", 0, 0, err
 	}
 
-	rows, err = a.db.Query(ctx, `SELECT id, title, level, description, questions FROM tests WHERE published ORDER BY id`)
+	rows, err = a.db.Query(ctx, `SELECT id, title, level, description, questions FROM tests WHERE published AND kind = 'quiz' ORDER BY id`)
 	if err != nil {
 		return "", 0, 0, err
 	}

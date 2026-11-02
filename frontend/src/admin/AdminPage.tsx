@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router-dom'
 import Analytics from './Analytics'
 import NewsAdmin from './NewsAdmin'
 import TestsAdmin from './TestsAdmin'
+import SurveyResults from './SurveyResults'
 import ScriptsAdmin from './ScriptsAdmin'
 import AssistantSettings from './AssistantSettings'
 import { AdminResult, StudentDetail, StudentsAdmin } from './Students'
@@ -15,6 +16,7 @@ export default function AdminPage() {
       <Route path="students/:id" element={<StudentDetail />} />
       <Route path="results/:id" element={<AdminResult />} />
       <Route path="tests" element={<TestsAdmin />} />
+      <Route path="surveys/:id" element={<SurveyResults />} />
       <Route path="assistant" element={<><AssistantSettings /><ScriptsAdmin /></>} />
     </Routes>
   )

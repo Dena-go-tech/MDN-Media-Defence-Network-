@@ -30,6 +30,7 @@ func (a *App) assistantChat(w http.ResponseWriter, r *http.Request) {
 	}
 	var in struct {
 		Messages []chatMessage `json:"messages"`
+		Lang     string        `json:"lang"`
 	}
 	if err := readJSON(r, &in); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid json")
@@ -72,6 +73,10 @@ func (a *App) assistantChat(w http.ResponseWriter, r *http.Request) {
 		}
 		// The site context is the large, rarely changing part: cache it between requests.
 		system = append(system, anthropic.BetaTextBlockParam{Text: siteText, CacheControl: anthropic.NewBetaCacheControlEphemeralParam()})
+	}
+	// After the cached block, so both languages share one cache entry.
+	if in.Lang == "ky" {
+		system = append(system, anthropic.BetaTextBlockParam{Text: "Пользователь выбрал на сайте кыргызский язык. Отвечай на кыргызском языке, если только пользователь сам не пишет на другом языке."})
 	}
 
 	flusher, ok := w.(http.Flusher)

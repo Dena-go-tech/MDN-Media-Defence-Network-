@@ -72,6 +72,23 @@ CREATE TABLE IF NOT EXISTS assistant_settings (
 	web_search    BOOLEAN NOT NULL DEFAULT true,
 	updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- kind: 'quiz' (graded, has correct answers) or 'survey' (anonymous poll, no correct answers).
+ALTER TABLE tests ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'quiz';
+
+-- Kyrgyz translations of content; empty fields fall back to the Russian original.
+ALTER TABLE news ADD COLUMN IF NOT EXISTS ky JSONB NOT NULL DEFAULT '{}';
+ALTER TABLE tests ADD COLUMN IF NOT EXISTS ky JSONB NOT NULL DEFAULT '{}';
+
+-- Anonymous survey answers: answers[i] is the list of option indexes chosen for question i.
+CREATE TABLE IF NOT EXISTS survey_responses (
+	id         BIGSERIAL PRIMARY KEY,
+	test_id    BIGINT NOT NULL REFERENCES tests(id) ON DELETE CASCADE,
+	answers    JSONB NOT NULL,
+	lang       TEXT NOT NULL DEFAULT 'ru',
+	created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS survey_responses_test_idx ON survey_responses (test_id);
 `
 
 func migrate(ctx context.Context, db *pgxpool.Pool) error {

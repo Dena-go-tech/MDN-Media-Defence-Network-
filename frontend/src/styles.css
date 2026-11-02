@@ -117,7 +117,15 @@ label.check input { width: 20px; height: 20px; accent-color: var(--accent); }
 .nav a:hover, .admin-nav a:hover { border-color: var(--ink); }
 .nav a.active, .admin-nav a.active { background: var(--sun); border-color: var(--ink); }
 .nav-icon { display: none; }
-.header-inner > .btn.ghost { margin-left: auto; }
+.header-tools { display: flex; align-items: center; gap: 12px; margin-left: auto; flex: none; }
+
+/* RU / KG switch */
+.lang-switch { display: inline-flex; border: var(--bw) solid var(--ink); background: var(--surface); flex: none; }
+.lang-switch button { min-width: 46px; min-height: 44px; padding: 0 10px; border: 0; background: transparent; color: var(--ink); font: 800 14px 'Onest', sans-serif; letter-spacing: .04em; cursor: pointer; }
+.lang-switch button + button { border-left: var(--bw) solid var(--ink); }
+.lang-switch button:hover:not(.active) { background: var(--bg); }
+.lang-switch button.active { background: var(--ink); color: var(--surface); }
+.lang-switch button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 
 .footer { background: var(--surface); border-top: var(--bw) solid var(--ink); color: var(--muted); font-size: 16px; }
 .footer-inner { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; padding-top: 36px; padding-bottom: 36px; }
@@ -449,7 +457,13 @@ details.panel > summary h2 { margin: 0; }
   .logo-mark { width: 40px; height: 40px; }
   .logo-text strong { font-size: 15px; }
   .logo-text small { font-size: 12px; }
-  .header-cta { margin-left: auto; min-height: 44px; padding: 0 14px; font-size: 14px; flex: none; box-shadow: 2px 2px 0 var(--ink); }
+  .header-cta { min-height: 44px; padding: 0 14px; font-size: 14px; flex: none; box-shadow: 2px 2px 0 var(--ink); }
+  .header-tools { gap: 8px; }
+  .header-tools .btn.ghost { min-height: 44px; padding: 0 12px; font-size: 14px; }
+  .exit-btn span { display: none; } /* icon-only on phones; the label stays as aria-label */
+  .logo, .logo-text { min-width: 0; }
+  .logo-text strong { overflow-wrap: anywhere; }
+  .lang-switch button { min-width: 40px; min-height: 40px; padding: 0 6px; font-size: 13px; }
   .admin-nav { order: 3; flex-basis: 100%; justify-content: flex-start; overflow-x: auto; scrollbar-width: none; margin: 0 -2px; }
   .admin-nav a { padding: 8px 12px; font-size: 15px; }
   .header-inner > .btn.secondary { margin-left: auto; min-height: 42px; padding: 0 14px; font-size: 14px; }
@@ -567,7 +581,8 @@ details.panel > summary h2 { margin: 0; }
 /* Small phones */
 @media (max-width: 420px) {
   .logo-text small:not(:has(.admin-tag)) { display: none; }
-  .header-cta { padding: 0 12px; font-size: 13px; }
+  .header-cta { padding: 0 10px; font-size: 13px; }
+  .lang-switch button { min-width: 36px; }
   .intro h1 { font-size: 26px; }
   /* Search button drops under the field so the placeholder stays readable. */
   .searchbar { flex-wrap: wrap; padding: 6px; }
@@ -578,3 +593,43 @@ details.panel > summary h2 { margin: 0; }
   .stats { grid-template-columns: 1fr; }
   .quiz h1 { font-size: 20px; }
 }
+
+/* ---------- Surveys ---------- */
+.survey-banner { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 16px 28px; padding: 28px 32px; background: var(--pink-soft); border: var(--bw) solid var(--ink); box-shadow: var(--shadow); color: var(--ink); transition: transform .1s, box-shadow .1s; }
+.survey-banner:hover { transform: translate(-2px, -2px); box-shadow: 8px 8px 0 var(--ink); }
+.survey-banner .pill { align-self: center; background: var(--surface); border: var(--bw) solid var(--ink); }
+.survey-banner .clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 8px; }
+.survey-banner .survey-meta { font-weight: 700; font-size: 15px; }
+.survey-list { display: flex; flex-direction: column; gap: 20px; }
+.survey-banner h2 { margin: 0 0 6px; font-size: 26px; line-height: 1.2; }
+.survey-banner p { margin: 0; font-size: 17px; color: var(--ink); }
+.test-card.survey { background: var(--pink-soft); }
+.test-card .row { gap: 8px; }
+.option.multi .letter { border-radius: 8px; border: var(--bw) solid var(--ink); }
+.option.multi.selected .letter { color: #fff; }
+.opt-letter { width: 46px; height: 46px; flex: none; border-radius: 50%; border: var(--bw) solid var(--ink); background: var(--surface); display: grid; place-items: center; font-weight: 800; }
+.stat strong.stat-small { font-size: 22px; }
+.survey-results { display: flex; flex-direction: column; gap: 24px; }
+.survey-results .q-head h2 { display: flex; align-items: center; gap: 12px; margin: 0; font-size: 22px; line-height: 1.3; }
+.survey-results .num { flex: none; }
+.bar.lead .bar-label span:first-child { font-weight: 800; }
+.bar.lead .bar-track span { background: var(--ink); }
+
+@media (max-width: 800px) {
+  .survey-banner { grid-template-columns: 1fr; padding: 22px 20px; }
+  .survey-banner .pill { align-self: flex-start; }
+  .survey-banner h2 { font-size: 22px; }
+  .survey-results .q-head h2 { font-size: 18px; }
+}
+
+/* ---------- Translatable admin fields (RU | KG per field) ---------- */
+.i18n-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.i18n-inline { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+.i18n-inline > input { flex: 1; min-width: 0; }
+.lang-toggle { display: inline-flex; flex: none; border: var(--bw) solid var(--ink); background: var(--surface); }
+.lang-toggle button { position: relative; min-width: 40px; min-height: 34px; padding: 0 8px; border: 0; background: transparent; color: var(--muted); font: 800 12px 'Onest', sans-serif; letter-spacing: .04em; cursor: pointer; }
+.lang-toggle button + button { border-left: var(--bw) solid var(--ink); }
+.lang-toggle button.active { background: var(--ink); color: var(--surface); }
+.lang-toggle button.filled::after { content: ''; position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
+.lang-toggle button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+input.i18n-ky, textarea.i18n-ky { background: var(--accent-soft) !important; }

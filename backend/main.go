@@ -112,6 +112,7 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /api/tests", a.listTests)
 	mux.HandleFunc("GET /api/tests/{id}", a.getTest)
 	mux.HandleFunc("POST /api/tests/{id}/submit", a.requireAuth(a.submitTest))
+	mux.HandleFunc("POST /api/tests/{id}/survey", a.submitSurvey)
 
 	mux.HandleFunc("GET /api/admin/stats", a.requireAdmin(a.adminStats))
 	mux.HandleFunc("GET /api/admin/results/{id}", a.requireAdmin(a.adminResult))
@@ -136,6 +137,8 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("POST /api/admin/tests", a.requireAdmin(a.createTest))
 	mux.HandleFunc("PUT /api/admin/tests/{id}", a.requireAdmin(a.updateTest))
 	mux.HandleFunc("DELETE /api/admin/tests/{id}", a.requireAdmin(a.deleteTest))
+	mux.HandleFunc("GET /api/admin/tests/{id}/survey", a.requireAdmin(a.adminSurvey))
+	mux.HandleFunc("DELETE /api/admin/tests/{id}/survey", a.requireAdmin(a.adminClearSurvey))
 
 	return mux
 }

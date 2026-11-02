@@ -1,9 +1,11 @@
 import { Link } from 'react-router-dom'
-import { formatTime, pct, type Stats } from '../api'
+import { formatTime, pct, type Stats, type TestSummary } from '../api'
 import { useFetch } from '../useFetch'
 
 export default function Analytics() {
   const { data, error, loading } = useFetch<Stats>('/admin/stats')
+  const tests = useFetch<TestSummary[]>('/admin/tests')
+  const surveys = (tests.data ?? []).filter((t) => t.kind === 'survey')
 
   if (loading) return <p className="muted">Загрузка…</p>
   if (error || !data) return <p className="error">{error ?? 'Нет данных'}</p>
@@ -75,6 +77,27 @@ export default function Analytics() {
           )}
         </section>
       </div>
+
+      {surveys.length > 0 && (
+        <section className="panel">
+          <h2>Опросы</h2>
+          <div className="table-wrap">
+            <table className="table clickable">
+              <thead><tr><th>Опрос</th><th>Ответов</th><th>Статус</th><th></th></tr></thead>
+              <tbody>
+                {surveys.map((s) => (
+                  <tr key={s.id}>
+                    <td><Link to={`/admin/surveys/${s.id}`} className="row-link"><strong>{s.title}</strong></Link></td>
+                    <td>{s.responses}</td>
+                    <td><span className={`pill${s.published ? '' : ' pink'}`}>{s.published ? 'Опубликован' : 'Черновик'}</span></td>
+                    <td><Link to={`/admin/surveys/${s.id}`} className="link nowrap">Ответы →</Link></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       <section className="panel">
         <h2>Самые трудные вопросы</h2>

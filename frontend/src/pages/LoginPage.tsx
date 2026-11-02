@@ -1,9 +1,11 @@
 import { useState, type FormEvent } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../auth'
+import { useLang } from '../i18n'
 
 export default function LoginPage() {
   const { user, login, register } = useAuth()
+  const { t } = useLang()
   const [mode, setMode] = useState<'login' | 'register'>('login')
   const [email, setEmail] = useState('')
   const [name, setName] = useState('')
@@ -25,16 +27,16 @@ export default function LoginPage() {
 
   return (
     <form className="auth-form" onSubmit={onSubmit}>
-      <h1>{mode === 'login' ? 'Вход' : 'Регистрация'}</h1>
+      <h1>{mode === 'login' ? t('login.title') : t('login.register')}</h1>
       <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
       {mode === 'register' && (
-        <input placeholder="Имя" value={name} onChange={(e) => setName(e.target.value)} required />
+        <input placeholder={t('login.name')} value={name} onChange={(e) => setName(e.target.value)} required />
       )}
-      <input type="password" placeholder="Пароль" value={password} onChange={(e) => setPassword(e.target.value)} required />
+      <input type="password" placeholder={t('login.password')} value={password} onChange={(e) => setPassword(e.target.value)} required />
       {error && <p className="error">{error}</p>}
-      <button className="btn" type="submit">{mode === 'login' ? 'Войти' : 'Зарегистрироваться'}</button>
+      <button className="btn" type="submit">{mode === 'login' ? t('login.submit') : t('login.submitRegister')}</button>
       <button type="button" className="link-btn" onClick={() => setMode(mode === 'login' ? 'register' : 'login')}>
-        {mode === 'login' ? 'Нет аккаунта? Зарегистрироваться' : 'Уже есть аккаунт? Войти'}
+        {mode === 'login' ? t('login.toRegister') : t('login.toLogin')}
       </button>
     </form>
   )

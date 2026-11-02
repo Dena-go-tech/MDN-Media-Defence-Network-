@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { token, type News, type Script, type TestSummary, type Verdict } from '../api'
+import { token, type Lang, type News, type Script, type TestSummary, type Verdict } from '../api'
 import { useAuth } from '../auth'
 import Bulb from '../Bulb'
 import type { BulbController, PoseName } from '../lib/bulb-ai.js'
+import { useLang, type TKey } from '../i18n'
 import { useFetch } from '../useFetch'
 import { Arrow, ICONS } from '../ui'
 
@@ -14,22 +15,14 @@ interface Message {
   error?: boolean
 }
 
-const VERDICTS: Record<Exclude<Verdict, 'none'>, { label: string; className: string }> = {
-  verified: { label: '✓ Подтверждено', className: 'verdict ok' },
-  fake: { label: '✕ Фейк', className: 'verdict bad' },
-  doubt: { label: '? Не подтверждено', className: 'verdict warn' },
-  warning: { label: '! Осторожно', className: 'verdict warn' },
+const VERDICTS: Record<Exclude<Verdict, 'none'>, { label: TKey; className: string }> = {
+  verified: { label: 'ai.verified', className: 'verdict ok' },
+  fake: { label: 'ai.fake', className: 'verdict bad' },
+  doubt: { label: 'ai.doubt', className: 'verdict warn' },
+  warning: { label: 'ai.warning', className: 'verdict warn' },
 }
 
-const EXAMPLES = [
-  'В WhatsApp пишут, что с завтрашнего дня в Бишкеке отключат мобильный интернет на неделю. Это правда?',
-  'Как отличить фейковую фотографию от настоящей?',
-  'Мне пришла SMS «Ваша карта заблокирована, перейдите по ссылке». Что делать?',
-]
-
-const GREETING = 'Привет! Я BulbAI. Пришлите новость, сообщение или ссылку, и я помогу проверить, правда это или фейк.'
-const DEMO_FALLBACK =
-  'Пока я работаю в демо-режиме и отвечаю только на подготовленные вопросы. Выберите один из вопросов ниже, а скоро я научусь проверять любые сообщения.'
+const EXAMPLES: TKey[] = ['ai.ex1', 'ai.ex2', 'ai.ex3']
 
 const VERDICT_RE = /\[\[VERDICT:\s*(\w+)\s*\]\]/
 // Strip the verdict marker, including a half-received one at the end of a stream.
@@ -38,7 +31,7 @@ const visible = (s: string) => s.replace(/\[\[VERDICT:[^\]]*\]\]/g, '').replace(
 const hasVoice = typeof window !== 'undefined' && 'speechSynthesis' in window
 
 const wordsOf = (s: string) =>
-  new Set(s.toLowerCase().replace(/ё/g, 'е').split(/[^a-zа-я0-9]+/).filter((w) => w.length > 3))
+  new Set(s.toLowerCase().replace(/ё/g, 'е').split(/[^a-zа-яңөү0-9]+/).filter((w) => w.length > 3))
 
 // Pick the prepared script whose question shares the most words with the input.
 function findScript(text: string, scripts: Script[]): Script | undefined {
@@ -59,12 +52,15 @@ function findScript(text: string, scripts: Script[]): Script | undefined {
   return best
 }
 
-function speakAloud(text: string) {
+function speakAloud(text: string, lang: Lang) {
   if (!hasVoice) return
   speechSynthesis.cancel()
   const u = new SpeechSynthesisUtterance(text)
-  u.lang = 'ru-RU'
-  u.voice = speechSynthesis.getVoices().find((v) => v.lang.startsWith('ru')) ?? null
+  // Kyrgyz voices are rare; fall back to a Russian one, which reads Cyrillic acceptably.
+  const voices = speechSynthesis.getVoices()
+  const voice = (lang === 'ky' ? voices.find((v) => v.lang.startsWith('ky')) : undefined) ?? voices.find((v) => v.lang.startsWith('ru'))
+  u.lang = voice?.lang ?? 'ru-RU'
+  u.voice = voice ?? null
   speechSynthesis.speak(u)
 }
 
@@ -73,17 +69,18 @@ const SITE_PATH = /(?<![\w/])\/(?:news|tests)\/\d+/g
 type Titles = Record<string, string>
 
 // The AI cites site materials by path; readers should see (and hear) the title instead.
-const withTitles = (text: string, titles: Titles) =>
-  text.replace(SITE_PATH, (p) => titles[p] ?? 'материал на сайте')
+const withTitles = (text: string, titles: Titles, fallback: string) =>
+  text.replace(SITE_PATH, (p) => titles[p] ?? fallback)
 
 // External URLs open in a new tab; site paths become in-app links labelled with the material's title.
 function Linkified({ text, titles }: { text: string; titles: Titles }) {
+  const { t } = useLang()
   const parts = text.split(/(https?:\/\/[^\s)]+|(?<![\w/])\/(?:news|tests)\/\d+)/g)
   return (
     <>
       {parts.map((p, i) =>
         /^https?:\/\//.test(p) ? <a key={i} href={p} target="_blank" rel="noreferrer">{p}</a>
-          : /^\/(news|tests)\/\d+$/.test(p) ? <Link key={i} to={p}>{titles[p] ?? 'материал на сайте'}</Link>
+          : /^\/(news|tests)\/\d+$/.test(p) ? <Link key={i} to={p}>{titles[p] ?? t('ai.material')}</Link>
           : p,
       )}
     </>
@@ -92,6 +89,7 @@ function Linkified({ text, titles }: { text: string; titles: Titles }) {
 
 export default function AssistantPage() {
   const { user, loading } = useAuth()
+  const { t, lang } = useLang()
   const status = useFetch<{ ai: boolean }>('/assistant/status')
   const scripts = useFetch<Script[]>('/assistant/scripts')
   const newsList = useFetch<News[]>('/news')
@@ -113,11 +111,12 @@ export default function AssistantPage() {
   const listRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    timer.current = setTimeout(() => bulb.current?.speak(GREETING, { pace: 300 }), 400)
+    timer.current = setTimeout(() => bulb.current?.speak(t('ai.greeting'), { pace: 300 }), 400)
     return () => {
       clearTimeout(timer.current)
       if (hasVoice) speechSynthesis.cancel()
     }
+    // Greets once on open, in the language the page was opened in.
   }, [])
 
   useEffect(() => {
@@ -149,13 +148,13 @@ export default function AssistantPage() {
   // Demo mode: play a prepared answer word by word, as if the AI were speaking it.
   const playScript = (text: string) => {
     const script = findScript(text, scripts.data ?? [])
-    const answer = script?.answer ?? DEMO_FALLBACK
+    const answer = script?.answer ?? t('ai.demoFallback')
     start(text)
     timer.current = setTimeout(() => {
       setPhase('speak')
       bulb.current?.release()
       const tokens = [...answer.matchAll(/\S+/g)]
-      if (voice) speakAloud(answer)
+      if (voice) speakAloud(answer, lang)
       bulb.current?.speak(tokens.map((t) => t[0]), {
         pace: voice ? 330 : 260,
         onWord: (_, i) => {
@@ -176,7 +175,7 @@ export default function AssistantPage() {
       const res = await fetch('/api/assistant/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token.get()}` },
-        body: JSON.stringify({ messages: history.map(({ role, content }) => ({ role, content })) }),
+        body: JSON.stringify({ messages: history.map(({ role, content }) => ({ role, content })), lang }),
       })
       if (!res.ok || !res.body) {
         const data = await res.json().catch(() => ({}))
@@ -210,7 +209,7 @@ export default function AssistantPage() {
         }
       }
       updateLast((m) => ({ ...m, content: visible(raw) }))
-      if (voice) speakAloud(withTitles(visible(raw), titles))
+      if (voice) speakAloud(withTitles(visible(raw), titles, t('ai.material')), lang)
       finish((raw.match(VERDICT_RE)?.[1] ?? 'none') as Verdict)
     } catch (e) {
       updateLast(() => ({ role: 'assistant', content: (e as Error).message, error: true }))
@@ -247,7 +246,7 @@ export default function AssistantPage() {
     setBusy(false)
     setPhase('idle')
     bulb.current?.release()
-    bulb.current?.speak('Хорошо, начнём заново. Что проверим?', { pace: 300 })
+    bulb.current?.speak(t('ai.restart'), { pace: 300 })
   }
 
   const toggleVoice = () => {
@@ -256,13 +255,13 @@ export default function AssistantPage() {
   }
 
   const statusText = {
-    analyze: 'Анализирую…',
-    search: 'Ищу источники…',
-    speak: 'Отвечаю…',
-    idle: verdict && verdict in VERDICTS ? VERDICTS[verdict as keyof typeof VERDICTS].label : 'Готов помочь',
+    analyze: t('ai.analyze'),
+    search: t('ai.search'),
+    speak: t('ai.speak'),
+    idle: verdict && verdict in VERDICTS ? t(VERDICTS[verdict as keyof typeof VERDICTS].label) : t('ai.ready'),
   }[phase]
 
-  const examples = demo ? (scripts.data ?? []).map((s) => s.question) : EXAMPLES
+  const examples = demo ? (scripts.data ?? []).map((s) => s.question) : EXAMPLES.map((k) => t(k))
   // Demo answers are prepared in advance, so they are open to everyone; the live AI needs an account.
   const canAsk = demo || !!user
 
@@ -279,7 +278,7 @@ export default function AssistantPage() {
             <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d={ICONS.speaker} /><path d={voice ? ICONS.waveOn : ICONS.waveOff} />
             </svg>
-            {voice ? 'Голос включён' : 'Голос выключен'}
+            {voice ? t('ai.voiceOn') : t('ai.voiceOff')}
           </button>
         )}
       </aside>
@@ -287,14 +286,10 @@ export default function AssistantPage() {
       <section className="assistant-chat">
         <div className="chat-head">
           <div>
-            <h1>ИИ-ассистент {demo && <span className="badge demo">Демо</span>}</h1>
-            <p className="muted">
-              {demo
-                ? 'Демонстрация будущего ассистента: ответы подготовлены заранее.'
-                : 'Проверка новостей и сообщений на достоверность. Ассистент может ошибаться: проверяйте важное по первоисточникам.'}
-            </p>
+            <h1>{t('ai.title')} {demo && <span className="badge demo">{t('ai.demo')}</span>}</h1>
+            <p className="muted">{demo ? t('ai.demoText') : t('ai.liveText')}</p>
           </div>
-          {messages.length > 0 && <button className="btn secondary" onClick={reset}>Новый чат</button>}
+          {messages.length > 0 && <button className="btn secondary" onClick={reset}>{t('ai.newChat')}</button>}
         </div>
 
         <div className="chat-list" ref={listRef}>
@@ -302,17 +297,17 @@ export default function AssistantPage() {
             <div key={i} className={`bubble ${m.role}${m.error ? ' error' : ''}`}>
               {m.verdict && m.verdict in VERDICTS && (
                 <span className={VERDICTS[m.verdict as keyof typeof VERDICTS].className}>
-                  {VERDICTS[m.verdict as keyof typeof VERDICTS].label}
+                  {t(VERDICTS[m.verdict as keyof typeof VERDICTS].label)}
                 </span>
               )}
               {m.content
                 ? m.content.split('\n').map((line, j) => (line ? <p key={j}><Linkified text={line} titles={titles} /></p> : null))
-                : <p className="muted">{phase === 'search' ? 'Ищу источники…' : 'Думаю…'}</p>}
+                : <p className="muted">{phase === 'search' ? t('ai.search') : t('ai.thinking')}</p>}
             </div>
           ))}
           {!busy && examples.length > 0 && (
             <div className="chat-empty">
-              <p className="label">{messages.length ? 'Ещё вопросы' : 'Попробуйте спросить'}</p>
+              <p className="label">{messages.length ? t('ai.more') : t('ai.try')}</p>
               {examples.map((ex) => (
                 <button key={ex} className="example" disabled={!canAsk} onClick={() => send(ex)}>
                   <span>{ex}</span><span className="example-arrow"><Arrow /></span>
@@ -326,17 +321,17 @@ export default function AssistantPage() {
           <form className="chat-input" onSubmit={onSubmit}>
             <textarea
               rows={2}
-              placeholder="Вставьте новость, сообщение или ссылку…"
+              placeholder={t('ai.placeholder')}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={onKeyDown}
               disabled={busy}
             />
-            <button className="btn" type="submit" disabled={busy || !input.trim()}>Проверить</button>
+            <button className="btn" type="submit" disabled={busy || !input.trim()}>{t('ai.check')}</button>
           </form>
         ) : (
           <div className="result">
-            <span><Link to="/login" className="link">Войдите</Link>, чтобы пользоваться ассистентом.</span>
+            <span>{t('ai.loginBefore')}<Link to="/login" className="link">{t('ai.loginLink')}</Link>{t('ai.loginAfter')}</span>
           </div>
         )}
       </section>
