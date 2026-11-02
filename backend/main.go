@@ -139,6 +139,8 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("DELETE /api/admin/tests/{id}", a.requireAdmin(a.deleteTest))
 	mux.HandleFunc("GET /api/admin/tests/{id}/survey", a.requireAdmin(a.adminSurvey))
 	mux.HandleFunc("DELETE /api/admin/tests/{id}/survey", a.requireAdmin(a.adminClearSurvey))
+	mux.HandleFunc("POST /api/admin/tests/{id}/survey/import", a.requireAdmin(a.adminImportSurvey))
+	mux.HandleFunc("POST /api/admin/tests/{id}/survey/fill", a.requireAdmin(a.adminFillSurvey))
 
 	return mux
 }

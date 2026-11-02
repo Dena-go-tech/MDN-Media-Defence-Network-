@@ -80,6 +80,7 @@ export interface SurveyStats {
   published: boolean
   responses: number
   by_lang: { ru: number; ky: number }
+  by_source: { site: number; import: number }
   last_at: string | null
   questions: { text: string; text_ky: string; options: string[]; multiple: boolean; optional: boolean; counts: number[]; answered: number }[]
 }

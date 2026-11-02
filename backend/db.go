@@ -89,6 +89,8 @@ CREATE TABLE IF NOT EXISTS survey_responses (
 	created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS survey_responses_test_idx ON survey_responses (test_id);
+-- 'site' = answered on the portal, 'import' = loaded from an outside poll (e.g. the Google Form).
+ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'site';
 `
 
 func migrate(ctx context.Context, db *pgxpool.Pool) error {
