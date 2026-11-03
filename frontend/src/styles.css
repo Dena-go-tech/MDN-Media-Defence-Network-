@@ -633,3 +633,57 @@ details.panel > summary h2 { margin: 0; }
 .lang-toggle button.filled::after { content: ''; position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
 .lang-toggle button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 input.i18n-ky, textarea.i18n-ky { background: var(--accent-soft) !important; }
+
+/* Rating of news channels */
+.rating-login { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; margin-top: 24px; padding: 18px 22px; background: var(--accent-soft); border: var(--bw) solid var(--ink); font-weight: 600; }
+.rating-list { list-style: none; margin: 32px 0 0; padding: 0; display: flex; flex-direction: column; gap: 18px; }
+.rating-row { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; align-items: center; gap: 20px; padding: 22px; background: var(--surface); border: var(--bw) solid var(--ink); box-shadow: var(--shadow); }
+.rating-row.mine { box-shadow: 4px 4px 0 var(--accent); border-color: var(--accent); }
+.rating-rank { font: 800 32px var(--display); text-align: center; }
+.rating-main { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.rating-title { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.rating-title h2 { margin: 0; font-size: 22px; overflow-wrap: anywhere; }
+.rating-title a:hover { text-decoration: underline; }
+.rating-title .pill { align-self: center; font-size: 13px; padding: 4px 10px; }
+.rating-votes { display: grid; grid-template-columns: 120px minmax(0, 1fr) 44px; align-items: center; gap: 12px; }
+.rating-votes .small { text-align: right; }
+.rating-metrics { display: flex; flex-wrap: wrap; gap: 4px 16px; color: var(--muted); font-size: 14px; font-weight: 500; }
+.rating-note.warn { color: var(--danger-ink); }
+.rating-vote { justify-self: end; gap: 6px; }
+.rating-method { margin-top: 48px; max-width: 72ch; }
+.rating-method h2 { font-size: 26px; margin: 0 0 12px; }
+.rating-method p { margin: 0 0 12px; }
+.source-box { padding: 20px; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; background: var(--bg); border: var(--bw) solid var(--ink); }
+.source-box p { margin: 0; font-size: 15px; }
+/* The longer menus stop fitting one line well before the phone layout starts. */
+@media (min-width: 801px) and (max-width: 1310px) {
+  .header-inner:has(> .admin-nav) { flex-wrap: wrap; }
+  .admin-nav { order: 3; flex-basis: 100%; justify-content: flex-start; overflow-x: auto; scrollbar-width: none; }
+  /* An admin's sixth tab takes the place of the CTA, which only repeats "Тесты". */
+  .header-inner:has(.nav a:nth-child(6)) .header-cta { display: none; }
+}
+@media (min-width: 801px) and (max-width: 1100px) {
+  .header-inner:has(> .nav) { flex-wrap: wrap; }
+  .nav { order: 3; flex-basis: 100%; justify-content: flex-start; overflow-x: auto; scrollbar-width: none; }
+}
+@media (max-width: 800px) {
+  .rating-row { grid-template-columns: 36px minmax(0, 1fr); gap: 12px; padding: 16px; }
+  .rating-rank { font-size: 22px; }
+  .rating-vote { grid-column: 1 / -1; justify-self: stretch; }
+  .rating-votes { grid-template-columns: 90px minmax(0, 1fr) 40px; }
+}
+
+/* Endless news feed */
+#news > .seg { margin-top: -4px; }
+.feed-status { min-height: 48px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px; text-align: center; }
+
+/* Voting from inside an article */
+.source-vote { align-self: stretch; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding-top: 14px; border-top: 1px solid var(--line-soft); }
+.source-vote strong { font-size: 17px; font-weight: 800; }
+.source-vote .row { flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+.source-vote .btn { height: auto; padding-top: 8px; padding-bottom: 8px; text-align: left; gap: 6px; }
+.source-vote .text-link { font-size: 15px; font-weight: 700; color: var(--accent); text-decoration: underline; }
+
+/* A big card without a picture takes the full width. */
+.feature.no-media { grid-template-columns: 1fr; }
+

@@ -13,6 +13,7 @@ export const ICONS = {
   tests: 'M9 5h10M9 12h10M9 19h10M4 5l1 1 2-2M4 12l1 1 2-2M4 19l1 1 2-2',
   assistant: 'M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V17h5v-1.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3Zm-2.5 17h5',
   profile: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 8a7 7 0 0 1 14 0',
+  rating: 'M6 20v-6M12 20V5M18 20v-9',
   admin: 'M4 7h10M18 7h2M4 17h2M10 17h10M14 5v4M6 15v4',
 }
 

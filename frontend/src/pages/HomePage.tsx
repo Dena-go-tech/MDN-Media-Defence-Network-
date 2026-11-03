@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { categoryColor, formatDate, formatShortDate, readMinutes, type News, type Script, type TestSummary } from '../api'
+import { formatDate, readMinutes, type News, type Script, type TestSummary } from '../api'
 import { useLang, type TKey } from '../i18n'
 import { useFetch } from '../useFetch'
 import { Arrow, ICONS, Icon } from '../ui'
+import NewsCard from './NewsCard'
 import TestCard, { SurveyBanner } from './TestCard'
 
 const QUICK_QUESTIONS: TKey[] = ['home.q1', 'home.q2', 'home.q3']
@@ -15,33 +16,17 @@ const VERDICT_LABELS: Record<string, { key: TKey; className: string }> = {
   warning: { key: 'verdict.warning', className: 'verdict warn' },
 }
 
-const ALL = ''
+// Stories on the home page, the big card included; the rest of the news is at /news.
+const HOME_NEWS = 10
 
-function NewsCard({ n }: { n: News }) {
-  const { t, category } = useLang()
-  return (
-    <Link to={`/news/${n.id}`} className="card">
-      <div className="card-media">{n.image_url && <img src={n.image_url} alt="" />}</div>
-      <div className="card-body">
-        {n.category && <span className="pill tag" style={{ background: categoryColor(n.category) }}>{category(n.category)}</span>}
-        <h3>{n.title}</h3>
-        <div className="card-meta">
-          <span>{formatShortDate(n.created_at)} · {readMinutes(n.body)} {t('common.min')}</span>
-          {n.summary && <span className="pill">{t('common.summary')}</span>}
-        </div>
-      </div>
-    </Link>
-  )
-}
-
-export default function NewsPage() {
-  const { t, category } = useLang()
+export default function HomePage() {
+  const { t } = useLang()
   const news = useFetch<News[]>('/news')
+  const latest = useFetch<News[]>(`/news/feed?limit=${HOME_NEWS}`)
   const tests = useFetch<TestSummary[]>('/tests')
   const scripts = useFetch<Script[]>('/assistant/scripts')
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
-  const [cat, setCat] = useState(ALL)
 
   const ask = (q: string) => navigate(`/assistant?q=${encodeURIComponent(q)}`)
   const onSearch = (e: FormEvent) => {
@@ -50,10 +35,9 @@ export default function NewsPage() {
   }
 
   const list = news.data ?? []
-  const featured = list.find((n) => n.featured) ?? list[0]
-  const rest = list.filter((n) => n !== featured)
-  const cats = [...new Set(rest.map((n) => n.category).filter(Boolean))]
-  const shown = cat === ALL ? rest : rest.filter((n) => n.category === cat)
+  // The big card belongs to the editors: an imported item takes it only when nothing else exists.
+  const featured = list.find((n) => n.featured) ?? list.find((n) => !n.source_url) ?? list[0]
+  const rest = (latest.data ?? []).filter((n) => n.id !== featured?.id).slice(0, HOME_NEWS - 1)
   const example = scripts.data?.[0]
   const quizzes = (tests.data ?? []).filter((x) => x.kind !== 'survey')
   const survey = (tests.data ?? []).find((x) => x.kind === 'survey')
@@ -83,14 +67,14 @@ export default function NewsPage() {
       {news.error && <p className="error">{news.error}</p>}
 
       {featured ? (
-        <Link to={`/news/${featured.id}`} className="feature">
-          <div className="feature-media">{featured.image_url && <img src={featured.image_url} alt="" />}</div>
+        <Link to={`/news/${featured.id}`} className={`feature${featured.image_url ? '' : ' no-media'}`}>
+          {featured.image_url && <div className="feature-media"><img src={featured.image_url} alt="" referrerPolicy="no-referrer" /></div>}
           <div className="feature-body">
             <span className="pill pink">{featured.featured ? t('home.featured') : t('home.fresh')}</span>
             <h2>{featured.title}</h2>
             {featured.summary && <p>{featured.summary}</p>}
             <div className="feature-meta">
-              <span>{formatDate(featured.created_at)} · {readMinutes(featured.body)} {t('common.minRead')}</span>
+              <span>{formatDate(featured.created_at)} · {featured.source_name || `${readMinutes(featured.body)} ${t('common.minRead')}`}</span>
               <span className="btn light">{t('home.read')}<Arrow /></span>
             </div>
           </div>
@@ -105,18 +89,10 @@ export default function NewsPage() {
         <section id="news" className="section">
           <div className="section-head">
             <h2>{t('home.news')}</h2>
-            {cats.length > 0 && (
-              <div className="seg" role="group" aria-label={t('home.rubrics')}>
-                {[ALL, ...cats].map((c) => (
-                  <button key={c} type="button" className={cat === c ? 'active' : ''} aria-pressed={cat === c} onClick={() => setCat(c)}>
-                    {c === ALL ? t('home.all') : category(c)}
-                  </button>
-                ))}
-              </div>
-            )}
+            <Link to="/news" className="btn secondary">{t('home.allNews')}<Arrow /></Link>
           </div>
           <div className="grid">
-            {shown.map((n) => <NewsCard key={n.id} n={n} />)}
+            {rest.map((n) => <NewsCard key={n.id} n={n} />)}
           </div>
         </section>
       )}

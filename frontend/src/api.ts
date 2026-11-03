@@ -17,6 +17,48 @@ export interface News {
   published: boolean
   created_at: string
   ky?: NewsText
+  /** Filled in on news imported from a channel's feed. */
+  source_id: number | null
+  source_name: string
+  source_url: string
+}
+
+export interface RatingRow {
+  id: number
+  rank: number
+  name: string
+  url: string
+  is_state: boolean
+  votes: number
+  activity: number
+  posts_7d: number
+  last_post_at: string | null
+  availability: number
+  status: 'ok' | 'error' | 'blocked' | 'pending'
+}
+
+export interface Rating {
+  updated_at: string | null
+  total_votes: number
+  my_vote: number | null
+  rows: RatingRow[]
+}
+
+export interface Source {
+  id: number
+  name: string
+  url: string
+  feed_url: string
+  is_state: boolean
+  import_news: boolean
+  category: string
+  enabled: boolean
+  last_status: string
+  last_error: string
+  last_fetch_at: string | null
+  fetch_ok: number
+  fetch_total: number
+  posts_7d: number
 }
 
 export interface NewsText {
@@ -171,6 +213,8 @@ export async function uploadImage(file: File): Promise<string> {
 }
 
 export const CATEGORIES = ['Право', 'Безопасность', 'Этика', 'Проверка фактов']
+export const STATE_CATEGORY = 'Госисточники'
+export const MEDIA_CATEGORY = 'СМИ'
 export const LEVELS = ['Базовый', 'Средний', 'Продвинутый']
 
 // Tag backgrounds per category (text on them is always dark ink); unknown ones get a neutral sand.
@@ -179,6 +223,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   'Безопасность': '#d6def6',
   'Этика': '#f2c64b',
   'Проверка фактов': '#bfe3cf',
+  [STATE_CATEGORY]: '#e8e3d5',
 }
 export const categoryColor = (c: string) => CATEGORY_COLORS[c] ?? '#e8e3d5'
 
@@ -245,6 +290,8 @@ export const formatDate = (s: string) => {
 
 export const formatShortDate = (s: string) => {
   const d = new Date(s)
+  // Without the year, an old article in the feed would look recent.
+  if (d.getFullYear() !== new Date().getFullYear()) return formatDate(s)
   return isKY() ? `${d.getDate()}-${KY_MONTHS[d.getMonth()]}` : d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })
 }
 

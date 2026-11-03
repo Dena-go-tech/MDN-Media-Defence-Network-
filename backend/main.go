@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/anthropics/anthropic-sdk-go/v2"
@@ -18,6 +19,7 @@ type App struct {
 	claude      *anthropic.Client
 	claudeModel string
 	uploadDir   string
+	syncMu      sync.Mutex
 }
 
 func env(key, def string) string {
@@ -81,6 +83,11 @@ func main() {
 		log.Fatalf("seed admin: %v", err)
 	}
 
+	if err := app.seedSources(ctx); err != nil {
+		log.Fatalf("seed sources: %v", err)
+	}
+	go app.syncLoop(ctx)
+
 	addr := ":" + env("PORT", "8080")
 	log.Printf("listening on %s", addr)
 	log.Fatal(http.ListenAndServe(addr, logRequests(app.routes())))
@@ -107,7 +114,12 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("POST /api/assistant/chat", a.requireAuth(a.assistantChat))
 
 	mux.HandleFunc("GET /api/news", a.listNews)
+	mux.HandleFunc("GET /api/news/feed", a.newsFeed)
 	mux.HandleFunc("GET /api/news/{id}", a.getNews)
+
+	mux.HandleFunc("GET /api/rating", a.rating)
+	mux.HandleFunc("PUT /api/rating/vote", a.requireAuth(a.vote))
+	mux.HandleFunc("DELETE /api/rating/vote", a.requireAuth(a.unvote))
 
 	mux.HandleFunc("GET /api/tests", a.listTests)
 	mux.HandleFunc("GET /api/tests/{id}", a.getTest)
@@ -123,6 +135,12 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("POST /api/admin/news", a.requireAdmin(a.createNews))
 	mux.HandleFunc("PUT /api/admin/news/{id}", a.requireAdmin(a.updateNews))
 	mux.HandleFunc("DELETE /api/admin/news/{id}", a.requireAdmin(a.deleteNews))
+
+	mux.HandleFunc("GET /api/admin/sources", a.requireAdmin(a.adminListSources))
+	mux.HandleFunc("POST /api/admin/sources", a.requireAdmin(a.createSource))
+	mux.HandleFunc("POST /api/admin/sources/refresh", a.requireAdmin(a.refreshSources))
+	mux.HandleFunc("PUT /api/admin/sources/{id}", a.requireAdmin(a.updateSource))
+	mux.HandleFunc("DELETE /api/admin/sources/{id}", a.requireAdmin(a.deleteSource))
 
 	mux.HandleFunc("GET /api/admin/assistant/settings", a.requireAdmin(a.adminGetSettings))
 	mux.HandleFunc("PUT /api/admin/assistant/settings", a.requireAdmin(a.adminUpdateSettings))

@@ -5,7 +5,8 @@ import ImageField, { clipboardImage, pastedImage } from './ImageField'
 import { useFetch } from '../useFetch'
 import I18nField, { type EditLang } from './LangTabs'
 
-type Draft = Omit<News, 'id' | 'created_at' | 'ky'> & { id?: number; ky: NewsText }
+type Draft = Omit<News, 'id' | 'created_at' | 'ky' | 'source_id' | 'source_name' | 'source_url'> & { id?: number; ky: NewsText }
+type Origin = 'own' | 'imported'
 
 const emptyKY = (): NewsText => ({ title: '', summary: '', body: '' })
 const empty = (): Draft => ({ title: '', summary: '', body: '', image_url: '', category: '', featured: false, published: true, ky: emptyKY() })
@@ -18,6 +19,9 @@ export default function NewsAdmin() {
   const [bodyLang, setBodyLang] = useState<EditLang>('ru')
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  // Imports outnumber the editors' own news quickly, so they sit behind a filter.
+  const [origin, setOrigin] = useState<Origin>('own')
+  const shown = data?.filter((n) => (origin === 'imported') === Boolean(n.source_url))
 
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setDraft((d) => ({ ...d, [k]: v }))
   const setKY = (k: keyof NewsText, v: string) => setDraft((d) => ({ ...d, ky: { ...d.ky, [k]: v } }))
@@ -94,16 +98,20 @@ export default function NewsAdmin() {
       <section className="admin-list">
         <div className="list-head">
           <h1>Новости</h1>
-          <span className="pill">{data?.length ?? 0} шт.</span>
+          <span className="pill">{shown?.length ?? 0} шт.</span>
         </div>
         <button className="btn secondary block" onClick={() => { reset(); setNotice(null) }}>+ Новая новость</button>
-        {data?.map((n) => (
+        <div className="seg soft" role="group" aria-label="Происхождение новостей">
+          <button type="button" className={origin === 'own' ? 'active' : ''} aria-pressed={origin === 'own'} onClick={() => setOrigin('own')}>Свои</button>
+          <button type="button" className={origin === 'imported' ? 'active' : ''} aria-pressed={origin === 'imported'} onClick={() => setOrigin('imported')}>Из лент</button>
+        </div>
+        {shown?.map((n) => (
           <div key={n.id} className={`admin-item${draft.id === n.id ? ' current' : ''}`}>
             <div className="admin-item-head">
               <strong>{n.title}</strong>
               <span className={`pill${n.published ? '' : ' pink'}`}>{n.featured ? 'Главная' : n.published ? 'Опубликовано' : 'Черновик'}</span>
             </div>
-            <span className="muted">{n.category ? `${n.category} · ` : ''}{formatShortDate(n.created_at)}{n.ky?.title ? ' · KG ✓' : ''}</span>
+            <span className="muted">{n.source_name ? `${n.source_name} · ` : ''}{n.category ? `${n.category} · ` : ''}{formatShortDate(n.created_at)}{n.ky?.title ? ' · KG ✓' : ''}</span>
             <div className="row">
               <button className="btn dark small" onClick={() => { setDraft(toDraft(n)); setNotice(null); setError(null) }}>Редактировать</button>
               <Link to={`/news/${n.id}`} className="btn ghost small">Открыть</Link>

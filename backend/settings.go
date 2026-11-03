@@ -69,14 +69,15 @@ func truncate(s string, n int) string {
 	return string(r[:n]) + "…"
 }
 
-// siteContext renders published news and tests as a block for the system prompt.
+// siteContext renders published news and tests as a block for the system prompt. Imported
+// news is left out: outside text must not reach the prompt or crowd out the site's own material.
 func (a *App) siteContext(ctx context.Context) (text string, news, tests int, err error) {
 	var b strings.Builder
 	b.WriteString("Ниже материалы сайта Media Defence Network KG на текущий момент. Это твоя база знаний о содержимом платформы: Чтобы сослаться на материал, напиши его путь из атрибута path (например /news/12 или /tests/3): на сайте путь автоматически заменяется кликабельным названием материала. Поэтому не пиши название рядом с путём и не бери его в кавычки, иначе оно повторится дважды. Если пользователь просит ссылку на материал, дай именно путь. Не придумывай пути, которых нет в списке. Если ответа в материалах нет, так и скажи или используй другие источники.\n\n")
 
 	rows, err := a.db.Query(ctx, `
 		SELECT id, title, ky->>'title', category, summary, body, created_at FROM news
-		WHERE published ORDER BY featured DESC, created_at DESC LIMIT $1`, contextNewsLimit)
+		WHERE published AND source_url = '' ORDER BY featured DESC, created_at DESC LIMIT $1`, contextNewsLimit)
 	if err != nil {
 		return "", 0, 0, err
 	}

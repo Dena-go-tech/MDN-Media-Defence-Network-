@@ -4,6 +4,7 @@ import { categoryColor, formatDate, readMinutes, type News, type TestSummary } f
 import { useLang } from '../i18n'
 import { useFetch } from '../useFetch'
 import { ICONS, Icon } from '../ui'
+import SourceVote from './SourceVote'
 
 // A line holding only an image URL (uploaded or external) is shown as a picture.
 const IMAGE_LINE = /^(\/uploads\/\S+|https?:\/\/\S+\.(jpe?g|png|webp|gif)(\?\S*)?)$/i
@@ -33,16 +34,26 @@ export default function NewsDetail() {
     <div className="article-layout">
       <article className="article">
         <nav className="crumbs" aria-label={t('article.crumbs')}>
-          <Link to="/">{t('nav.news')}</Link><span aria-hidden="true">/</span><span>{data.category ? category(data.category) : t('article.material')}</span>
+          <Link to="/news">{t('nav.news')}</Link><span aria-hidden="true">/</span><span>{data.category ? category(data.category) : t('article.material')}</span>
         </nav>
         <div className="article-meta">
           {data.category && <span className="pill solid" style={{ background: categoryColor(data.category) }}>{category(data.category)}</span>}
-          <span>{formatDate(data.created_at)} · {readMinutes(data.body)} {t('common.minRead')}</span>
+          <span>{formatDate(data.created_at)} · {data.source_name || `${readMinutes(data.body)} ${t('common.minRead')}`}</span>
         </div>
         <h1>{data.title}</h1>
-        {data.image_url && <img className="article-media" src={data.image_url} alt="" />}
+        {data.image_url && <img className="article-media" src={data.image_url} alt="" referrerPolicy="no-referrer" />}
 
-        {data.summary && (
+        {data.source_url && (
+          <aside className="source-box">
+            <p>{t('article.importNote', { source: data.source_name })}</p>
+            <a href={data.source_url} target="_blank" rel="noopener noreferrer" className="btn dark small">{t('article.readOriginal')}</a>
+            {data.source_id && <SourceVote sourceId={data.source_id} name={data.source_name} />}
+          </aside>
+        )}
+
+
+        {/* An imported summary is just the start of the text below. */}
+        {data.summary && !(data.source_url && data.body) && (
           <section className="summary-box" aria-label={t('common.summary')}>
             <div className="summary-head"><span><Icon d={ICONS.spark} /></span><strong>{t('common.summary')}</strong></div>
             <p>{data.summary}</p>
