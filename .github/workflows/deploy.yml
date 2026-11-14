@@ -1,0 +1,33 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-mdn
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          authkey: ${{ secrets.TAILSCALE_KEY }}
+
+      - name: Deploy to server
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          SERVER: 100.70.125.108
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy
+          chmod 600 ~/.ssh/deploy
+          echo "$SERVER ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMct0CxnNFDMInPxufWa/kGVZ2At+2sKXfqhAN8k8YZ6" >> ~/.ssh/known_hosts
+          # Ключ на сервере ограничен командой /usr/local/bin/deploy-project:
+          # git reset --hard origin/main + docker compose up -d --build
+          ssh -i ~/.ssh/deploy -o IdentitiesOnly=yes root@$SERVER "deploy mdn"

@@ -38,6 +38,20 @@ services:
     networks:
       - tunnel
 
+  # Cloudflare Tunnel "mdn": публикует mdn.dena.services -> http://frontend:80
+  # (маршрут настраивается в панели Cloudflare, nginx фронтенда проксирует /api и /uploads на backend)
+  tunnel:
+    container_name: mdn_tunnel
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - frontend
+    networks:
+      - tunnel
+
 networks:
   tunnel:
     driver: bridge
